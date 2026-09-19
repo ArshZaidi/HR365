@@ -2,7 +2,6 @@
 .env
 backend/.env
 *.env
-.env.example
 
 # Python
 __pycache__/

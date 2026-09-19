@@ -1,4 +1,6 @@
-"""High-level RAG pipeline: index management + query execution."""
+"""
+High-level RAG pipeline: index management + query execution.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +8,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List
+from typing import Any
 
 from app import config
 from app.data.chunker import chunk_documents
@@ -22,146 +24,339 @@ logger = logging.getLogger(__name__)
 
 
 def _compute_corpus_signature(raw_dir: Path) -> str:
-    """Hash filenames + mtimes + sizes so we can detect content changes."""
+    """
+    Create a signature representing the current raw-document corpus.
+
+    The signature includes:
+    - relative file path
+    - file size
+    - modification timestamp
+
+    This allows the pipeline to automatically rebuild the FAISS index
+    whenever the source corpus changes.
+    """
     hasher = hashlib.sha256()
+
     if not raw_dir.exists():
         return hasher.hexdigest()
 
     for path in sorted(raw_dir.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in SUPPORTED_EXTS:
+        if not path.is_file():
             continue
+
+        if path.suffix.lower() not in SUPPORTED_EXTS:
+            continue
+
         try:
             stat = path.stat()
-        except OSError:
+            relative_path = path.relative_to(raw_dir).as_posix()
+        except (OSError, ValueError):
             continue
-        hasher.update(path.name.encode("utf-8"))
+
+        hasher.update(relative_path.encode("utf-8"))
         hasher.update(str(stat.st_size).encode("utf-8"))
         hasher.update(str(stat.st_mtime_ns).encode("utf-8"))
+
     return hasher.hexdigest()
 
 
 class RAGPipeline:
-    """Coordinates ingestion, retrieval, reranking, and answer generation."""
+    """
+    Complete HR365 RAG pipeline.
+
+    Flow:
+
+        raw documents
+            ↓
+        loader
+            ↓
+        cleaner
+            ↓
+        chunker
+            ↓
+        embeddings
+            ↓
+        FAISS
+            ↓
+        retriever
+            ↓
+        reranker
+            ↓
+        answer engine
+    """
 
     def __init__(self) -> None:
         self.embedder = EmbeddingModel(config.EMBEDDING_MODEL)
-        self.store = VectorStore(dim=self.embedder.dim, index_dir=config.INDEX_DIR)
-        self.retriever = Retriever(self.embedder, self.store)
+
+        self.store = VectorStore(
+            dim=self.embedder.dim,
+            index_dir=config.INDEX_DIR,
+        )
+
+        self.retriever = Retriever(
+            self.embedder,
+            self.store,
+        )
+
         self.reranker = LexicalReranker()
+
         self.answer_engine = AnswerEngine()
 
         self.manifest_path = config.INDEX_DIR / "manifest.json"
+
         self._ready = False
 
-    # ------------------------------------------------------------------
-    # Startup
-    # ------------------------------------------------------------------
     def initialize(self) -> None:
+        """
+        Load an existing compatible index or rebuild it automatically.
+        """
         config.ensure_dirs()
 
         signature = _compute_corpus_signature(config.RAW_DIR)
-        needs_rebuild = True
 
-        if self.manifest_path.exists() and (config.INDEX_DIR / "faiss.index").exists():
-            try:
-                manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
-            except Exception:  # noqa: BLE001
-                manifest = {}
+        manifest = self._load_manifest()
 
-            if (
-                manifest.get("signature") == signature
-                and manifest.get("embedding_model") == config.EMBEDDING_MODEL
-            ):
-                needs_rebuild = False
+        index_exists = (
+            (config.INDEX_DIR / "faiss.index").exists()
+            and (config.INDEX_DIR / "chunks.json").exists()
+        )
 
-        if needs_rebuild:
-            logger.info("Corpus changed or index missing - rebuilding FAISS index.")
-            self.build_index()
-            self._write_manifest(signature)
+        reusable_index = (
+            index_exists
+            and manifest.get("signature") == signature
+            and manifest.get("embedding_model")
+            == config.EMBEDDING_MODEL
+            and manifest.get("chunk_size")
+            == config.CHUNK_SIZE
+            and manifest.get("chunk_overlap")
+            == config.CHUNK_OVERLAP
+        )
+
+        if reusable_index:
+            logger.info(
+                "Existing compatible FAISS index found. "
+                "Loading index from %s",
+                config.INDEX_DIR,
+            )
+
+            if self.store.load():
+                self._ready = True
+
+                logger.info(
+                    "RAG ready. vectors=%d, llm_available=%s",
+                    self.store.size,
+                    self.answer_engine.llm_available,
+                )
+                return
+
+            logger.warning(
+                "Existing index could not be loaded. "
+                "Rebuilding from source documents."
+            )
+
         else:
-            logger.info("Loading existing FAISS index from %s", config.INDEX_DIR)
-            if not self.store.load():
-                logger.warning("Index load failed - rebuilding from scratch.")
-                self.build_index()
-                self._write_manifest(signature)
+            logger.info(
+                "Corpus/config changed or index missing. "
+                "Rebuilding FAISS index."
+            )
+
+        success = self.build_index()
+
+        if not success:
+            raise RuntimeError(
+                "Failed to build the HR365 RAG index."
+            )
+
+        self._write_manifest(signature)
 
         self._ready = True
+
         logger.info(
             "RAG ready. vectors=%d, llm_available=%s",
             self.store.size,
             self.answer_engine.llm_available,
         )
 
-    def _write_manifest(self, signature: str) -> None:
+    def _load_manifest(self) -> dict[str, Any]:
+        """
+        Safely load the index manifest.
+
+        Returns an empty dictionary if the manifest is missing or invalid.
+        """
+        if not self.manifest_path.exists():
+            return {}
+
         try:
+            data = json.loads(
+                self.manifest_path.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+            if isinstance(data, dict):
+                return data
+
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning(
+                "Could not read index manifest: %s",
+                exc,
+            )
+
+        return {}
+
+    def _write_manifest(self, signature: str) -> None:
+        """
+        Save metadata describing the current FAISS index.
+        """
+        try:
+            manifest = {
+                "signature": signature,
+                "embedding_model": config.EMBEDDING_MODEL,
+                "chunk_size": config.CHUNK_SIZE,
+                "chunk_overlap": config.CHUNK_OVERLAP,
+                "vectors": self.store.size,
+            }
+
             self.manifest_path.write_text(
                 json.dumps(
-                    {
-                        "signature": signature,
-                        "embedding_model": config.EMBEDDING_MODEL,
-                        "chunk_size": config.CHUNK_SIZE,
-                        "chunk_overlap": config.CHUNK_OVERLAP,
-                        "vectors": self.store.size,
-                    },
+                    manifest,
                     indent=2,
                 ),
                 encoding="utf-8",
             )
-        except OSError as exc:
-            logger.warning("Could not write manifest: %s", exc)
 
-    # ------------------------------------------------------------------
-    # Indexing
-    # ------------------------------------------------------------------
-    def build_index(self) -> None:
+        except OSError as exc:
+            logger.warning(
+                "Could not write index manifest: %s",
+                exc,
+            )
+
+    def build_index(self) -> bool:
+        """
+        Build the FAISS index from the current document corpus.
+
+        Returns:
+            True  -> index successfully built
+            False -> index construction failed
+        """
         self.store.clear()
 
         documents = load_documents(config.RAW_DIR)
+
         if not documents:
-            logger.warning("No documents found under %s - index will be empty.", config.RAW_DIR)
-            return
+            logger.warning(
+                "No supported documents found under %s. "
+                "Starting with an empty knowledge base.",
+                config.RAW_DIR,
+            )
+            return True
 
-        cleaned = []
+        cleaned_documents = []
+
         for document in documents:
-            document = clean_document(document)
-            if document.text:
-                cleaned.append(document)
+            cleaned_document = clean_document(document)
 
-        if not cleaned:
-            logger.warning("All documents were empty after cleaning.")
-            return
+            if cleaned_document.text:
+                cleaned_documents.append(
+                    cleaned_document
+                )
+
+        if not cleaned_documents:
+            logger.warning(
+                "All documents were empty after cleaning."
+            )
+            return True
 
         chunks = chunk_documents(
-            cleaned, config.CHUNK_SIZE, config.CHUNK_OVERLAP
+            cleaned_documents,
+            config.CHUNK_SIZE,
+            config.CHUNK_OVERLAP,
         )
-        if not chunks:
-            logger.warning("Chunking produced zero chunks.")
-            return
 
-        texts = [c.text for c in chunks]
+        if not chunks:
+            logger.warning(
+                "Chunking produced zero chunks."
+            )
+            return True
+
+        texts = [chunk.text for chunk in chunks]
+
         try:
             embeddings = self.embedder.embed_documents(texts)
-        except Exception as exc:  # noqa: BLE001
-            logger.error("Embedding generation failed: %s", exc)
-            return
 
-        self.store.add(chunks, embeddings)
-        self.store.save()
+        except Exception as exc:
+            logger.exception(
+                "Embedding generation failed: %s",
+                exc,
+            )
+            return False
+
+        try:
+            if len(embeddings) != len(chunks):
+                logger.error(
+                    "Embedding/chunk count mismatch: "
+                    "%d embeddings for %d chunks.",
+                    len(embeddings),
+                    len(chunks),
+                )
+                return False
+
+            self.store.add(
+                chunks,
+                embeddings,
+            )
+
+            self.store.save()
+
+        except Exception as exc:
+            logger.exception(
+                "Failed to create or save FAISS index: %s",
+                exc,
+            )
+            return False
+
         logger.info(
-            "Indexed %d chunks from %d documents.", len(chunks), len(cleaned)
+            "Indexed %d chunks from %d documents.",
+            len(chunks),
+            len(cleaned_documents),
         )
 
-    # ------------------------------------------------------------------
-    # Query
-    # ------------------------------------------------------------------
-    def run(self, question: str) -> Dict:
-        if not question or not question.strip():
-            raise ValueError("Question must not be empty.")
+        return True
 
-        retrieved = self.retriever.retrieve(question, k=config.RETRIEVAL_K)
-        reranked = self.reranker.rerank(question, retrieved, top_n=config.RERANK_K)
+    def run(
+        self,
+        question: str,
+    ) -> dict[str, Any]:
+        """
+        Execute one RAG query.
+        """
+        question = question.strip()
 
-        answer, sources = self.answer_engine.generate(question, reranked)
+        if not question:
+            raise ValueError(
+                "Question must not be empty."
+            )
+
+        if not self._ready:
+            raise RuntimeError(
+                "RAG pipeline is not initialized."
+            )
+
+        retrieved = self.retriever.retrieve(
+            question,
+            k=config.RETRIEVAL_K,
+        )
+
+        reranked = self.reranker.rerank(
+            question,
+            retrieved,
+            top_n=config.RERANK_K,
+        )
+
+        answer, sources = self.answer_engine.generate(
+            question,
+            reranked,
+        )
 
         return {
             "answer": answer,

@@ -1,4 +1,6 @@
-"""FastAPI entrypoint for the HR365 RAG backend."""
+"""
+FastAPI entrypoint for the HR365 RAG backend.
+"""
 
 from __future__ import annotations
 
@@ -18,40 +20,80 @@ from app.models.schemas import (
 )
 from app.rag.pipeline import RAGPipeline
 
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+
 logger = logging.getLogger("hr365")
+
+
+# ---------------------------------------------------------------------------
+# Global pipeline state
+# ---------------------------------------------------------------------------
 
 _pipeline: Optional[RAGPipeline] = None
 _startup_error: Optional[str] = None
 
 
+# ---------------------------------------------------------------------------
+# Application lifecycle
+# ---------------------------------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    """
+    Initialise the RAG pipeline when FastAPI starts.
+    """
     global _pipeline, _startup_error
 
+    _pipeline = None
+    _startup_error = None
+
     logger.info("Starting HR365 RAG backend...")
+
     try:
         _pipeline = RAGPipeline()
         _pipeline.initialize()
+
         logger.info("HR365 backend ready.")
-    except Exception as exc:  # noqa: BLE001
+
+    except Exception as exc:
         _startup_error = str(exc)
-        logger.exception("Fatal error during startup: %s", exc)
+
+        logger.exception(
+            "Fatal error during startup: %s",
+            exc,
+        )
 
     yield
 
     logger.info("Shutting down HR365 backend.")
 
 
+# ---------------------------------------------------------------------------
+# FastAPI application
+# ---------------------------------------------------------------------------
+
 app = FastAPI(
     title="HR365 RAG API",
     version="0.1.0",
-    description="Locally runnable RAG backend for the HR365 hackathon project.",
+    description=(
+        "Locally runnable RAG backend for the HR365 "
+        "hackathon project."
+    ),
     lifespan=lifespan,
 )
+
+
+# ---------------------------------------------------------------------------
+# CORS
+# ---------------------------------------------------------------------------
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,57 +104,137 @@ app.add_middleware(
 )
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
 def _require_pipeline() -> RAGPipeline:
+    """
+    Return the active RAG pipeline or raise a meaningful HTTP error.
+    """
     if _startup_error:
         raise HTTPException(
             status_code=503,
-            detail=f"RAG pipeline failed to initialise: {_startup_error}",
+            detail=(
+                "RAG pipeline failed to initialise: "
+                f"{_startup_error}"
+            ),
         )
+
     if _pipeline is None:
-        raise HTTPException(status_code=503, detail="RAG pipeline not ready.")
+        raise HTTPException(
+            status_code=503,
+            detail="RAG pipeline not ready.",
+        )
+
     return _pipeline
 
 
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
 @app.get("/")
-def root() -> dict:
+def root() -> dict[str, str]:
+    """
+    Basic API information.
+    """
     return {
         "name": "HR365 RAG API",
         "status": "ok",
         "docs": "/docs",
+        "health": "/health",
         "ask": "/api/ask",
     }
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+)
 def health() -> HealthResponse:
+    """
+    Health/readiness endpoint.
+    """
     if _pipeline is None:
         return HealthResponse(
-            status="starting" if not _startup_error else "error",
+            status=(
+                "error"
+                if _startup_error
+                else "starting"
+            ),
             indexed_chunks=0,
-            llm_available=bool(config.DEEPSEEK_API_KEY),
+            llm_available=bool(
+                config.GROQ_API_KEY
+            ),
         )
+
     return HealthResponse(
         status="ok",
         indexed_chunks=_pipeline.store.size,
-        llm_available=_pipeline.answer_engine.llm_available,
+        llm_available=(
+            _pipeline.answer_engine.llm_available
+        ),
     )
 
 
-@app.post("/api/ask", response_model=AskResponse)
-def ask(payload: AskRequest) -> AskResponse:
-    question = (payload.question or "").strip()
+@app.post(
+    "/api/ask",
+    response_model=AskResponse,
+)
+def ask(
+    payload: AskRequest,
+) -> AskResponse:
+    """
+    Ask a question against the HR365 knowledge base.
+    """
+    question = (
+        payload.question or ""
+    ).strip()
+
     if not question:
-        raise HTTPException(status_code=400, detail="Question must not be empty.")
+        raise HTTPException(
+            status_code=400,
+            detail="Question must not be empty.",
+        )
 
     pipeline = _require_pipeline()
 
     try:
         result = pipeline.run(question)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Pipeline execution failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Internal RAG error.") from exc
 
-    sources = [SourceItem(**item) for item in result["sources"]]
-    return AskResponse(answer=result["answer"], sources=sources)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except RuntimeError as exc:
+        logger.exception(
+            "RAG runtime error: %s",
+            exc,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        ) from exc
+
+    except Exception as exc:
+        logger.exception(
+            "Pipeline execution failed: %s",
+            exc,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Internal RAG error.",
+        ) from exc
+
+    sources = [
+        SourceItem(**item)
+        for item in result["sources"]
+    ]
+
+    return AskResponse(
+        answer=result["answer"],
+        sources=sources,
+    )

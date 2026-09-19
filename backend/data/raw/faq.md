@@ -1,33 +1,67 @@
-# HR365 — Frequently Asked Questions (DUMMY DATA)
+# HR365 Frequently Asked Questions
 
-> **DUMMY DATA WARNING**: These Q&A pairs are fictional seed content for the
-> HR365 demo. They are not real HR policies.
+> **DUMMY DATA:** This file contains seed/demo content for the HR365
+> hackathon project.
 
-**Q: What is HR365?**
-A: HR365 is a fictional, locally runnable HR platform demo that includes an
-AI assistant for answering HR questions from internal documents.
+## General
 
-**Q: Do I need an LLM API key to run HR365?**
-A: No. If `DEEPSEEK_API_KEY` is not set, HR365 uses a deterministic extractive
-fallback that builds an answer from the retrieved passages. The API still
-works, and the response clearly states that no LLM was used.
+### What is HR365?
 
-**Q: How does the AI assistant decide what to answer?**
-A: It embeds your question, retrieves the top candidate passages from the
-FAISS index, reranks them using a lightweight lexical score, and then either
-calls the LLM or generates a fallback answer using only those passages.
+HR365 is a fictional, locally runnable HR platform demo designed to
+centralise common HR operations and provide an AI assistant for
+answering questions from internal documents.
 
-**Q: What file types can I index?**
-A: HR365 indexes `.md`, `.txt`, and `.pdf` files placed in `backend/data/raw/`.
+### Who is HR365 for?
 
-**Q: What happens if the documents don't contain the answer?**
-A: The assistant is instructed to say that the provided documents do not
-contain information about the question. It does not invent facts.
+HR365 is designed for small and medium-sized organisations that want a
+lightweight HR workspace.
 
-**Q: How do I update the knowledge base?**
-A: Add or edit files in `backend/data/raw/` and restart the API. The index is
-rebuilt automatically when the raw files change.
+### Is HR365 a real production HR system?
 
-**Q: Where is the FAISS index stored?**
-A: It is written to `backend/data/index/` as `faiss.index` alongside a
-`chunks.json` metadata file and a `manifest.json` corpus signature.
+No. The current repository contains a hackathon prototype and
+demonstration data.
+
+## AI Assistant
+
+### What can the HR365 AI assistant do?
+
+The assistant can answer questions using information retrieved from
+the HR365 knowledge base.
+
+### What happens if the answer is not in the documents?
+
+The assistant should state that the provided documents do not contain
+the requested information rather than inventing an answer.
+
+## Documents
+
+### What file types can I index?
+
+The current document loader supports:
+
+- `.txt`
+- `.md`
+- `.pdf`
+
+### Where should documents be placed?
+
+Documents should be placed inside:
+
+`backend/data/raw/`
+
+The RAG pipeline automatically processes supported documents when the
+backend initializes and detects corpus changes.
+
+## Technical
+
+### Does HR365 use a vector database?
+
+The current prototype uses FAISS for local vector similarity search.
+
+### Does HR365 require an external AI provider?
+
+No. The RAG pipeline can run without an LLM API key using its
+deterministic fallback answer engine.
+
+When configured, the prototype uses an LLM through Groq's
+OpenAI-compatible API.
