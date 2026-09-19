@@ -1,0 +1,27 @@
+# Environment variables
+.env
+backend/.env
+*.env
+.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# RAG generated files
+backend/data/index/*
+backend/data/processed/*
+
+# OS
+.DS_Store
+Thumbs.db
