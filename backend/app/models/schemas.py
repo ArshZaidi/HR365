@@ -17,11 +17,19 @@ class SourceItem(BaseModel):
     chunk_id: str = Field(..., description="Unique chunk identifier.")
     score: float = Field(..., description="Combined relevance score.")
 
+class ConfidenceItem(BaseModel):
+    score: float
+    level: str
+    top_similarity: float
+    mean_similarity: float
+    evidence_score: float
+    relevant_chunk_count: int
+
 
 class AskResponse(BaseModel):
     answer: str
     sources: List[SourceItem]
-
+    confidence: ConfidenceItem
 
 class HealthResponse(BaseModel):
     status: str

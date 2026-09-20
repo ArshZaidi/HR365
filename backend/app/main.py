@@ -17,7 +17,9 @@ from app.models.schemas import (
     AskResponse,
     HealthResponse,
     SourceItem,
+    ConfidenceItem,
 )
+
 from app.rag.pipeline import RAGPipeline
 from app.auth.dependencies import get_current_user
 from fastapi import Depends
@@ -323,4 +325,7 @@ def ask(
     return AskResponse(
         answer=result["answer"],
         sources=sources,
+        confidence=ConfidenceItem(
+            **result["confidence"]
+        ),
     )

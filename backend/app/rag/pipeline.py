@@ -15,6 +15,7 @@ from app.data.chunker import chunk_documents
 from app.data.cleaner import clean_document
 from app.data.loader import SUPPORTED_EXTS, load_documents
 from app.engines.answer_engine import AnswerEngine
+from app.engines.confidence_engine import ConfidenceEngine
 from app.rag.embeddings import EmbeddingModel
 from app.rag.reranker import LexicalReranker
 from app.rag.retriever import Retriever
@@ -101,7 +102,7 @@ class RAGPipeline:
         self.reranker = LexicalReranker()
 
         self.answer_engine = AnswerEngine()
-
+        self.confidence_engine = ConfidenceEngine()
         self.manifest_path = config.INDEX_DIR / "manifest.json"
 
         self._ready = False
@@ -353,6 +354,10 @@ class RAGPipeline:
             top_n=config.RERANK_K,
         )
 
+        confidence = self.confidence_engine.calculate(
+            [score for _, score in reranked]
+        )
+
         answer, sources = self.answer_engine.generate(
             question,
             reranked,
@@ -363,4 +368,12 @@ class RAGPipeline:
             "sources": sources,
             "retrieved": len(retrieved),
             "reranked": len(reranked),
+            "confidence": {
+                "score": confidence.score,
+                "level": confidence.level,
+                "top_similarity": confidence.top_similarity,
+                "mean_similarity": confidence.mean_similarity,
+                "evidence_score": confidence.evidence_score,
+                "relevant_chunk_count": confidence.relevant_chunk_count,
+            },
         }
