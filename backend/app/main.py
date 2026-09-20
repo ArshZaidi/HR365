@@ -30,7 +30,7 @@ from app.auth.dependencies import (
 )
 
 from app.routers.attendance import router as attendance_router
-
+from app.routers.leaves import router as leaves_router
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -102,6 +102,7 @@ app = FastAPI(
 )
 
 app.include_router(attendance_router)
+app.include_router(leaves_router)
 
 # ---------------------------------------------------------------------------
 # CORS

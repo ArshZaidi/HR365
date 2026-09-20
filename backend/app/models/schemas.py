@@ -26,3 +26,9 @@ class HealthResponse(BaseModel):
     status: str
     indexed_chunks: int
     llm_available: bool
+
+class LeaveCreateRequest(BaseModel):
+    leave_type: str
+    start_date: date
+    end_date: date
+    reason: str | None = None
