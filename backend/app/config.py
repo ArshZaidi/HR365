@@ -88,6 +88,9 @@ GROQ_TIMEOUT: int = int(
     os.getenv("GROQ_TIMEOUT", "60")
 )
 
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
 
 # ---------------------------------------------------------------------------
 # Directory setup

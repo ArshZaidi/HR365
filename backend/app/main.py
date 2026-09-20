@@ -19,6 +19,15 @@ from app.models.schemas import (
     SourceItem,
 )
 from app.rag.pipeline import RAGPipeline
+from app.auth.dependencies import get_current_user
+from fastapi import Depends
+from app.auth.supabase_client import supabase
+
+from app.auth.dependencies import (
+    get_current_profile,
+    require_admin,
+    require_hr,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +185,77 @@ def health() -> HealthResponse:
             _pipeline.answer_engine.llm_available
         ),
     )
+
+@app.get("/api/auth/profile")
+def get_profile(
+    auth=Depends(get_current_profile),
+):
+    """
+    Return the authenticated HR365 profile.
+    """
+    return auth["profile"]
+
+@app.get("/api/auth/test-employee")
+def test_employee_access(
+    auth=Depends(get_current_profile),
+):
+    return {
+        "message": "Employee-level authentication successful.",
+        "role": auth["profile"]["role"],
+    }
+
+@app.get("/api/auth/test-hr")
+def test_hr_access(
+    auth=Depends(require_hr),
+):
+    return {
+        "message": "HR-level access successful.",
+        "role": auth["profile"]["role"],
+    }
+
+@app.get("/api/auth/test-admin")
+def test_admin_access(
+    auth=Depends(require_admin),
+):
+    return {
+        "message": "Admin-level access successful.",
+        "role": auth["profile"]["role"],
+    }
+
+@app.get("/api/auth/me")
+def get_me(auth=Depends(get_current_user)):
+    current_user = auth["user"]
+    client = auth["client"]
+
+    try:
+        response = (
+            client
+            .table("profiles")
+            .select(
+                "id, employee_id, full_name, email, role, "
+                "department, designation, phone, joining_date, "
+                "manager_id, is_active"
+            )
+            .eq("id", current_user.id)
+            .single()
+            .execute()
+        )
+
+        profile = response.data
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to retrieve HR365 profile: {str(exc)}",
+        )
+
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail="HR365 profile not found.",
+        )
+
+    return profile
 
 
 @app.post(
