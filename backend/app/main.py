@@ -31,6 +31,7 @@ from app.auth.dependencies import (
 
 from app.routers.attendance import router as attendance_router
 from app.routers.leaves import router as leaves_router
+from app.routers.hr_requests import router as hr_requests_router
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -102,6 +103,7 @@ app = FastAPI(
 )
 
 app.include_router(attendance_router)
+app.include_router(hr_requests_router)
 app.include_router(leaves_router)
 
 # ---------------------------------------------------------------------------
