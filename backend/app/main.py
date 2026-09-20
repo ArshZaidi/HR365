@@ -29,6 +29,8 @@ from app.auth.dependencies import (
     require_hr,
 )
 
+from app.routers.attendance import router as attendance_router
+
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -99,6 +101,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(attendance_router)
 
 # ---------------------------------------------------------------------------
 # CORS
