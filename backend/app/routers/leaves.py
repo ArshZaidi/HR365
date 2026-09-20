@@ -1,8 +1,9 @@
 from datetime import date
-
 from fastapi import APIRouter, Depends, HTTPException, Query
-
 from app.auth.dependencies import get_current_profile
+from app.auth.dependencies import require_hr
+from app.models.schemas import LeaveCreateRequest
+from pydantic import BaseModel
 
 
 router = APIRouter(
@@ -10,6 +11,8 @@ router = APIRouter(
     tags=["Leave Management"],
 )
 
+class LeaveStatusUpdate(BaseModel):
+    status: str
 
 @router.get("/me")
 def get_my_leaves(
@@ -172,4 +175,223 @@ def get_my_leave_summary(
             "cancelled": cancelled,
             "approved_leave_days": approved_days,
         },
+    }
+
+@router.post("")
+def create_leave(
+    request: LeaveCreateRequest,
+    auth=Depends(get_current_profile),
+):
+    """
+    Submit a new leave request for the authenticated employee.
+    """
+
+    profile = auth["profile"]
+    client = auth["client"]
+
+    if request.end_date < request.start_date:
+        raise HTTPException(
+            status_code=400,
+            detail="end_date cannot be before start_date.",
+        )
+
+    allowed_leave_types = {
+        "casual",
+        "sick",
+        "earned",
+        "annual",
+        "other",
+    }
+
+    if request.leave_type not in allowed_leave_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid leave type.",
+        )
+
+    try:
+        response = (
+            client
+            .table("leaves")
+            .insert(
+                {
+                    "employee_id": profile["id"],
+                    "leave_type": request.leave_type,
+                    "start_date": request.start_date.isoformat(),
+                    "end_date": request.end_date.isoformat(),
+                    "reason": request.reason,
+                    "status": "pending",
+                }
+            )
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to create leave request.",
+        )
+
+    if not response.data:
+        raise HTTPException(
+            status_code=500,
+            detail="Leave request was not created.",
+        )
+
+    return {
+        "message": "Leave request submitted successfully.",
+        "leave": response.data[0],
+    }
+
+@router.get("")
+def get_all_leaves(
+    status: str | None = Query(
+        default=None,
+        description="Filter by leave status.",
+    ),
+    employee_id: str | None = Query(
+        default=None,
+        description="Filter by employee UUID.",
+    ),
+    auth=Depends(require_hr),
+):
+    """
+    Return leave requests for HR/admin users.
+    """
+
+    client = auth["client"]
+
+    allowed_statuses = {
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled",
+    }
+
+    if status and status not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid leave status.",
+        )
+
+    query = (
+        client
+        .table("leaves")
+        .select(
+            "id, employee_id, leave_type, start_date, "
+            "end_date, reason, status, approved_by, "
+            "created_at, updated_at"
+        )
+        .order("created_at", desc=True)
+    )
+
+    if status:
+        query = query.eq("status", status)
+
+    if employee_id:
+        query = query.eq("employee_id", employee_id)
+
+    try:
+        response = query.execute()
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve leave requests.",
+        )
+
+    records = response.data or []
+
+    return {
+        "records": records,
+        "count": len(records),
+    }
+
+@router.patch("/{leave_id}")
+def update_leave_status(
+    leave_id: str,
+    request: LeaveStatusUpdate,
+    auth=Depends(require_hr),
+):
+    """
+    Approve or reject an employee leave request.
+    HR and admins only.
+    """
+
+    client = auth["client"]
+    profile = auth["profile"]
+
+    allowed_statuses = {
+        "approved",
+        "rejected",
+        "cancelled",
+    }
+
+    if request.status not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid status. "
+                "Use approved, rejected, or cancelled."
+            ),
+        )
+
+    # First check that the leave exists.
+    try:
+        existing = (
+            client
+            .table("leaves")
+            .select(
+                "id, employee_id, leave_type, "
+                "start_date, end_date, reason, status"
+            )
+            .eq("id", leave_id)
+            .single()
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=404,
+            detail="Leave request not found.",
+        )
+
+    if not existing.data:
+        raise HTTPException(
+            status_code=404,
+            detail="Leave request not found.",
+        )
+
+    if existing.data["status"] != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending leave requests can be updated.",
+        )
+
+    # Update the leave request.
+    try:
+        response = (
+            client
+            .table("leaves")
+            .update(
+                {
+                    "status": request.status,
+                    "approved_by": profile["id"],
+                }
+            )
+            .eq("id", leave_id)
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to update leave request.",
+        )
+
+    if not response.data:
+        raise HTTPException(
+            status_code=500,
+            detail="Leave request was not updated.",
+        )
+
+    return {
+        "message": f"Leave request {request.status}.",
+        "leave": response.data[0],
     }
