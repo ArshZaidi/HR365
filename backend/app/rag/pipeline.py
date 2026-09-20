@@ -358,6 +358,14 @@ class RAGPipeline:
             [score for _, score in reranked]
         )
 
+        escalation_required = confidence.level == "low"
+
+        escalation_reason = (
+            "RAG confidence is low. Human HR review is recommended."
+            if escalation_required
+            else None
+        )
+
         answer, sources = self.answer_engine.generate(
             question,
             reranked,

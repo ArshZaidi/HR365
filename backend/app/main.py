@@ -328,4 +328,6 @@ def ask(
         confidence=ConfidenceItem(
             **result["confidence"]
         ),
+        escalation_required=result["escalation_required"],
+        escalation_reason=result["escalation_reason"],
     )

@@ -25,11 +25,12 @@ class ConfidenceItem(BaseModel):
     evidence_score: float
     relevant_chunk_count: int
 
-
 class AskResponse(BaseModel):
     answer: str
     sources: List[SourceItem]
     confidence: ConfidenceItem
+    escalation_required: bool
+    escalation_reason: str | None = None
 
 class HealthResponse(BaseModel):
     status: str
