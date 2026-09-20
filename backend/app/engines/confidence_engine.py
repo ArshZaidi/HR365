@@ -22,7 +22,7 @@ class ConfidenceEngine:
     HIGH_THRESHOLD = 0.80
     MEDIUM_THRESHOLD = 0.60
     RELEVANCE_THRESHOLD = 0.60
-    TARGET_EVIDENCE_COUNT = 3
+    TARGET_EVIDENCE_COUNT = 2
 
     def calculate(
         self,
@@ -59,9 +59,9 @@ class ConfidenceEngine:
         )
 
         confidence = (
-            0.50 * top_similarity
-            + 0.30 * mean_similarity
-            + 0.20 * evidence_score
+            0.70 * top_similarity
+            + 0.20 * mean_similarity
+            + 0.10 * evidence_score
         )
 
         confidence = max(0.0, min(1.0, confidence))

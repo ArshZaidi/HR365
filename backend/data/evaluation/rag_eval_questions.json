@@ -1,0 +1,102 @@
+[
+  {
+    "id": "Q01",
+    "question": "What is the attendance policy?",
+    "expected_source": "02_attendance_policy.md"
+  },
+  {
+    "id": "Q02",
+    "question": "How many days of casual leave do employees get?",
+    "expected_source": "03_leave_policy.md"
+  },
+  {
+    "id": "Q03",
+    "question": "How much sick leave is available annually?",
+    "expected_source": "03_leave_policy.md"
+  },
+  {
+    "id": "Q04",
+    "question": "How many remote work days are allowed per week?",
+    "expected_source": "04_remote_work_policy.md"
+  },
+  {
+    "id": "Q05",
+    "question": "What are the core working hours for remote employees?",
+    "expected_source": "04_remote_work_policy.md"
+  },
+  {
+    "id": "Q06",
+    "question": "When is the monthly salary credited?",
+    "expected_source": "07_payroll_policy.md"
+  },
+  {
+    "id": "Q07",
+    "question": "What health insurance benefits are provided?",
+    "expected_source": "06_benefits_policy.md"
+  },
+  {
+    "id": "Q08",
+    "question": "What is the internet reimbursement limit?",
+    "expected_source": "06_benefits_policy.md"
+  },
+  {
+    "id": "Q09",
+    "question": "What are the company's code of conduct requirements?",
+    "expected_source": "05_code_of_conduct.md"
+  },
+  {
+    "id": "Q10",
+    "question": "What should employees do if they miss a check-out?",
+    "expected_source": "02_attendance_policy.md"
+  },
+  {
+    "id": "Q11",
+    "question": "What security requirements apply when working remotely?",
+    "expected_source": "08_it_security_policy.md"
+  },
+  {
+    "id": "Q12",
+    "question": "What should an employee do if they have an HR grievance?",
+    "expected_source": "10_workplace_safety_and_grievance.md"
+  },
+  {
+    "id": "Q13",
+    "question": "What is the employee assistance program?",
+    "expected_source": "06_benefits_policy.md"
+  },
+  {
+    "id": "Q14",
+    "question": "What does the employee handbook say about company policies?",
+    "expected_source": "01_employee_handbook.md"
+  },
+  {
+    "id": "Q15",
+    "question": "What are the latest company notices?",
+    "expected_source": "11_company_notices.md"
+  },
+  {
+    "id": "Q16",
+    "question": "What is the current salary of employee EMP001?",
+    "expected_source": null
+  },
+  {
+    "id": "Q17",
+    "question": "What is employee EMP001's attendance percentage?",
+    "expected_source": null
+  },
+  {
+    "id": "Q18",
+    "question": "What is the company's revenue this year?",
+    "expected_source": null
+  },
+  {
+    "id": "Q19",
+    "question": "Who is the CEO of NimbusWorks?",
+    "expected_source": null
+  },
+  {
+    "id": "Q20",
+    "question": "What is my remaining leave balance?",
+    "expected_source": null
+  }
+]
