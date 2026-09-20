@@ -384,4 +384,6 @@ class RAGPipeline:
                 "evidence_score": confidence.evidence_score,
                 "relevant_chunk_count": confidence.relevant_chunk_count,
             },
+            "escalation_required": escalation_required,
+            "escalation_reason": escalation_reason,
         }
