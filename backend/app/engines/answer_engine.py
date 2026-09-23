@@ -57,6 +57,7 @@ class AnswerEngine:
         self,
         question: str,
         results: list[tuple[Chunk, float]],
+        additional_context: str | None = None,
     ) -> tuple[str, list[dict[str, Any]]]:
         """
         Generate an answer from retrieved and reranked chunks.
@@ -79,6 +80,7 @@ class AnswerEngine:
         prompt = build_prompt(
             question=question,
             contexts=results,
+            additional_context=additional_context,
         )
 
         # ---------------------------------------------------------

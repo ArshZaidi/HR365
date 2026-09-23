@@ -91,7 +91,26 @@ GROQ_TIMEOUT: int = int(
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
+# ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
 
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000",
+    ).split(",")
+    if origin.strip()
+]
+
+ENABLE_AUTH_TEST_ROUTES = (
+    os.getenv(
+        "ENABLE_AUTH_TEST_ROUTES",
+        "false",
+    ).lower()
+    == "true"
+)
 # ---------------------------------------------------------------------------
 # Directory setup
 # ---------------------------------------------------------------------------
@@ -108,3 +127,4 @@ def ensure_dirs() -> None:
             parents=True,
             exist_ok=True,
         )
+        

@@ -31,6 +31,7 @@ class AskResponse(BaseModel):
     confidence: ConfidenceItem
     escalation_required: bool
     escalation_reason: str | None = None
+    hr_ticket_id: str | None = None
 
 class HealthResponse(BaseModel):
     status: str
@@ -42,3 +43,24 @@ class LeaveCreateRequest(BaseModel):
     start_date: date
     end_date: date
     reason: str | None = None
+
+class HRRequestCreateRequest(BaseModel):
+    category: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+    )
+    subject: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+    )
+    description: str = Field(
+        ...,
+        min_length=1,
+        max_length=5000,
+    )
+    priority: str = Field(
+        default="normal",
+        max_length=20,
+    )

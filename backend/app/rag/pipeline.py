@@ -327,6 +327,7 @@ class RAGPipeline:
     def run(
         self,
         question: str,
+        additional_context: str | None = None,
     ) -> dict[str, Any]:
         """
         Execute one RAG query.
@@ -369,6 +370,7 @@ class RAGPipeline:
         answer, sources = self.answer_engine.generate(
             question,
             reranked,
+            additional_context=additional_context,
         )
 
         return {
