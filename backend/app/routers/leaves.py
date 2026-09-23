@@ -1,18 +1,51 @@
+"""
+Leave management routes for HR365.
+"""
+
+from __future__ import annotations
+
+import logging
 from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.auth.dependencies import get_current_profile
-from app.auth.dependencies import require_hr
-from app.models.schemas import LeaveCreateRequest
 from pydantic import BaseModel
 
+from app.auth.dependencies import (
+    get_current_profile,
+    require_hr,
+)
+from app.models.schemas import LeaveCreateRequest
+from app.services.task_reassignment import TaskReassignmentService
+
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+logger = logging.getLogger("hr365.leaves")
+
+
+# ---------------------------------------------------------------------------
+# Router
+# ---------------------------------------------------------------------------
 
 router = APIRouter(
     prefix="/api/leaves",
     tags=["Leave Management"],
 )
 
+
+# ---------------------------------------------------------------------------
+# Schemas
+# ---------------------------------------------------------------------------
+
 class LeaveStatusUpdate(BaseModel):
     status: str
+
+
+# ---------------------------------------------------------------------------
+# Employee: View own leaves
+# ---------------------------------------------------------------------------
 
 @router.get("/me")
 def get_my_leaves(
@@ -85,11 +118,17 @@ def get_my_leaves(
 
     try:
         response = query.execute()
-    except Exception:
+
+    except Exception as exc:
+        logger.exception(
+            "Unable to retrieve leave records: %s",
+            exc,
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to retrieve leave records.",
-        )
+        ) from exc
 
     records = response.data or []
 
@@ -102,6 +141,11 @@ def get_my_leaves(
         "records": records,
         "count": len(records),
     }
+
+
+# ---------------------------------------------------------------------------
+# Employee: Leave summary
+# ---------------------------------------------------------------------------
 
 @router.get("/me/summary")
 def get_my_leave_summary(
@@ -125,11 +169,17 @@ def get_my_leave_summary(
 
     try:
         response = query.execute()
-    except Exception:
+
+    except Exception as exc:
+        logger.exception(
+            "Unable to calculate leave summary: %s",
+            exc,
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to calculate leave summary.",
-        )
+        ) from exc
 
     records = response.data or []
 
@@ -140,25 +190,31 @@ def get_my_leave_summary(
     approved_days = 0
 
     for record in records:
-        status = record["status"]
 
-        if status == "pending":
+        record_status = record["status"]
+
+        if record_status == "pending":
             pending += 1
 
-        elif status == "approved":
+        elif record_status == "approved":
             approved += 1
 
-            start = date.fromisoformat(record["start_date"])
-            end = date.fromisoformat(record["end_date"])
+            start = date.fromisoformat(
+                record["start_date"]
+            )
+
+            end = date.fromisoformat(
+                record["end_date"]
+            )
 
             approved_days += (
                 end - start
             ).days + 1
 
-        elif status == "rejected":
+        elif record_status == "rejected":
             rejected += 1
 
-        elif status == "cancelled":
+        elif record_status == "cancelled":
             cancelled += 1
 
     return {
@@ -176,6 +232,11 @@ def get_my_leave_summary(
             "approved_leave_days": approved_days,
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Employee: Create leave request
+# ---------------------------------------------------------------------------
 
 @router.post("")
 def create_leave(
@@ -225,11 +286,17 @@ def create_leave(
             )
             .execute()
         )
-    except Exception:
+
+    except Exception as exc:
+        logger.exception(
+            "Unable to create leave request: %s",
+            exc,
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to create leave request.",
-        )
+        ) from exc
 
     if not response.data:
         raise HTTPException(
@@ -241,6 +308,11 @@ def create_leave(
         "message": "Leave request submitted successfully.",
         "leave": response.data[0],
     }
+
+
+# ---------------------------------------------------------------------------
+# HR/Admin: View all leaves
+# ---------------------------------------------------------------------------
 
 @router.get("")
 def get_all_leaves(
@@ -292,11 +364,17 @@ def get_all_leaves(
 
     try:
         response = query.execute()
-    except Exception:
+
+    except Exception as exc:
+        logger.exception(
+            "Unable to retrieve leave requests: %s",
+            exc,
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to retrieve leave requests.",
-        )
+        ) from exc
 
     records = response.data or []
 
@@ -305,6 +383,11 @@ def get_all_leaves(
         "count": len(records),
     }
 
+
+# ---------------------------------------------------------------------------
+# HR/Admin: Approve / reject / cancel leave
+# ---------------------------------------------------------------------------
+
 @router.patch("/{leave_id}")
 def update_leave_status(
     leave_id: str,
@@ -312,8 +395,11 @@ def update_leave_status(
     auth=Depends(require_hr),
 ):
     """
-    Approve or reject an employee leave request.
-    HR and admins only.
+    Approve, reject, or cancel an employee leave request.
+
+    When a leave is approved, HR365 automatically attempts to
+    reassign the employee's active tasks to suitable available
+    employees based on role, department, availability, and workload.
     """
 
     client = auth["client"]
@@ -334,7 +420,10 @@ def update_leave_status(
             ),
         )
 
-    # First check that the leave exists.
+    # -----------------------------------------------------------------------
+    # Check that the leave exists
+    # -----------------------------------------------------------------------
+
     try:
         existing = (
             client
@@ -347,11 +436,17 @@ def update_leave_status(
             .single()
             .execute()
         )
-    except Exception:
+
+    except Exception as exc:
+        logger.exception(
+            "Unable to retrieve leave request: %s",
+            exc,
+        )
+
         raise HTTPException(
             status_code=404,
             detail="Leave request not found.",
-        )
+        ) from exc
 
     if not existing.data:
         raise HTTPException(
@@ -365,7 +460,10 @@ def update_leave_status(
             detail="Only pending leave requests can be updated.",
         )
 
-    # Update the leave request.
+    # -----------------------------------------------------------------------
+    # Update leave request
+    # -----------------------------------------------------------------------
+
     try:
         response = (
             client
@@ -379,11 +477,17 @@ def update_leave_status(
             .eq("id", leave_id)
             .execute()
         )
-    except Exception:
+
+    except Exception as exc:
+        logger.exception(
+            "Unable to update leave request: %s",
+            exc,
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to update leave request.",
-        )
+        ) from exc
 
     if not response.data:
         raise HTTPException(
@@ -391,7 +495,72 @@ def update_leave_status(
             detail="Leave request was not updated.",
         )
 
+    # -----------------------------------------------------------------------
+    # Automatic task reassignment
+    # -----------------------------------------------------------------------
+
+    reassignment = None
+
+    if request.status == "approved":
+
+        approved_leave = response.data[0]
+
+        try:
+            reassignment_service = TaskReassignmentService(
+                client=client,
+                employee_id=approved_leave["employee_id"],
+                start_date=date.fromisoformat(
+                    approved_leave["start_date"]
+                ),
+                end_date=date.fromisoformat(
+                    approved_leave["end_date"]
+                ),
+            )
+
+            reassignment = (
+                reassignment_service.reassign_tasks()
+            )
+
+            logger.info(
+                "Leave-approved task reassignment completed. "
+                "leave_id=%s employee_id=%s tasks_found=%s "
+                "tasks_reassigned=%s tasks_unassigned=%s",
+                leave_id,
+                approved_leave["employee_id"],
+                reassignment.get("tasks_found", 0),
+                reassignment.get("tasks_reassigned", 0),
+                reassignment.get("tasks_unassigned", 0),
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "Automatic task reassignment failed. "
+                "leave_id=%s employee_id=%s",
+                leave_id,
+                approved_leave["employee_id"],
+            )
+
+            # The leave approval itself remains successful.
+            # HR receives an explicit indication that reassignment
+            # could not be completed.
+            reassignment = {
+                "tasks_found": 0,
+                "tasks_reassigned": 0,
+                "tasks_unassigned": 0,
+                "assignments": [],
+                "unassigned": [],
+                "error": (
+                    "Automatic task reassignment could not "
+                    "be completed."
+                ),
+            }
+
+    # -----------------------------------------------------------------------
+    # Response
+    # -----------------------------------------------------------------------
+
     return {
         "message": f"Leave request {request.status}.",
         "leave": response.data[0],
+        "task_reassignment": reassignment,
     }
