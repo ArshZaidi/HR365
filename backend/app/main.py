@@ -33,6 +33,7 @@ from app.routers.hr_requests import router as hr_requests_router
 from app.routers.leaves import router as leaves_router
 from app.security.crypto import encrypt_text
 from app.services.employee_data import EmployeeDataService
+from app.routers.feedback import router as feedback_router
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +109,7 @@ app = FastAPI(
 app.include_router(attendance_router)
 app.include_router(hr_requests_router)
 app.include_router(leaves_router)
-
+app.include_router(feedback_router)
 
 # ---------------------------------------------------------------------------
 # CORS
