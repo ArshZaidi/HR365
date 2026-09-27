@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
 import PageTransition from "@/components/ui/PageTransition";
 import Magnetic from "@/components/ui/Magnetic";
@@ -12,13 +13,109 @@ import {
   FileText,
   Sparkles,
 } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+
+interface DashboardData {
+  attendance: number;
+  leaveApprovedDays: number;
+  openRequests: number;
+}
+
+interface Activity {
+  title: string;
+  description: string;
+  time: string;
+}
 
 export default function DashboardPage() {
+  const [data, setData] =
+    useState<DashboardData | null>(null);
+
+  const [activities, setActivities] =
+    useState<Activity[]>([]);
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        const [
+          attendanceResponse,
+          leaveResponse,
+          requestsResponse,
+        ] = await Promise.all([
+          apiFetch<{
+            summary: {
+              attendance_percentage: number;
+            };
+          }>("/api/attendance/me/summary"),
+
+          apiFetch<{
+            summary: {
+              approved_days: number;
+            };
+          }>("/api/leaves/me/summary"),
+
+          apiFetch<{
+            requests: Array<{
+              id: string;
+              subject: string;
+              status: string;
+              created_at: string;
+            }>;
+          }>("/api/hr-requests/me"),
+        ]);
+
+        const requests =
+          requestsResponse.requests || [];
+
+        setData({
+          attendance:
+            attendanceResponse.summary
+              .attendance_percentage,
+
+          leaveApprovedDays:
+            leaveResponse.summary.approved_days,
+
+          openRequests: requests.filter(
+            (request) =>
+              request.status !== "resolved" &&
+              request.status !== "closed"
+          ).length,
+        });
+
+        const requestActivities = requests
+          .slice(0, 3)
+          .map((request) => ({
+            title: request.subject,
+            description: `HR request · ${request.status.replace(
+              "_",
+              " "
+            )}`,
+            time: formatRelativeDate(
+              request.created_at
+            ),
+          }));
+
+        setActivities(requestActivities);
+      } catch (error) {
+        console.error(
+          "Unable to load dashboard:",
+          error
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, []);
+
   return (
     <AppShell>
       <PageTransition>
         <div className="mx-auto max-w-[1400px] px-6 py-10 lg:px-10">
-          
+
           {/* Header */}
           <section className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
@@ -26,13 +123,13 @@ export default function DashboardPage() {
                 Saturday, September 27
               </p>
 
-              <h1 className="mt-2 text-4xl font-semibold tracking-[-0.035em] text-[var(--foreground)]">
+              <h1 className="mt-2 text-4xl font-medium tracking-[-0.045em]">
                 Good morning, Arsh.
               </h1>
 
               <p className="mt-3 max-w-xl text-[15px] leading-7 text-[var(--muted)]">
-                Your HR workspace is ready. Here's a quick look at
-                everything that needs your attention.
+                Your HR workspace is ready. Here's a quick
+                look at everything that needs your attention.
               </p>
             </div>
 
@@ -48,34 +145,47 @@ export default function DashboardPage() {
             </Magnetic>
           </section>
 
-          {/* Stats */}
+          {/* Live stats */}
           <section className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--border)] md:grid-cols-2 xl:grid-cols-4">
+
             <Stat
               icon={<CalendarDays size={18} />}
               label="Attendance"
-              value="92%"
-              description="This month"
+              value={
+                loading
+                  ? "—"
+                  : `${data?.attendance ?? 0}%`
+              }
+              description="Current"
             />
 
             <Stat
               icon={<Clock3 size={18} />}
-              label="Leave balance"
-              value="12 days"
-              description="Remaining"
+              label="Approved leave"
+              value={
+                loading
+                  ? "—"
+                  : `${data?.leaveApprovedDays ?? 0} days`
+              }
+              description="Days taken"
             />
 
             <Stat
               icon={<FileText size={18} />}
               label="HR requests"
-              value="2"
+              value={
+                loading
+                  ? "—"
+                  : String(data?.openRequests ?? 0)
+              }
               description="Open requests"
             />
 
             <Stat
               icon={<CheckCircle2 size={18} />}
               label="Tasks"
-              value="4"
-              description="In progress"
+              value="—"
+              description="Task tracking"
             />
           </section>
 
@@ -95,16 +205,17 @@ export default function DashboardPage() {
                   HR365 Intelligence
                 </p>
 
-                <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-[-0.03em]">
+                <h2 className="mt-3 max-w-xl text-3xl font-medium tracking-[-0.04em]">
                   Your HR questions,
                   <br />
                   answered instantly.
                 </h2>
 
                 <p className="mt-4 max-w-lg text-sm leading-7 text-[var(--muted)]">
-                  Ask about policies, leave, attendance, benefits or
-                  your personal HR information. Answers are grounded
-                  in your organization's trusted data.
+                  Ask about policies, leave, attendance,
+                  benefits or your personal HR information.
+                  Answers are grounded in your organization's
+                  trusted data.
                 </p>
 
                 <Magnetic strength={0.1}>
@@ -123,38 +234,36 @@ export default function DashboardPage() {
             <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-7">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold">
+                  <p className="text-sm font-medium">
                     Recent activity
                   </p>
 
                   <p className="mt-1 text-xs text-[var(--muted)]">
-                    Your latest updates
+                    Your latest HR activity
                   </p>
                 </div>
 
-                <button className="text-xs text-[var(--muted)] transition hover:text-[var(--foreground)]">
+                <a
+                  href="/requests"
+                  className="text-xs text-[var(--muted)] transition hover:text-[var(--foreground)]"
+                >
                   View all
-                </button>
+                </a>
               </div>
 
               <div className="mt-7 space-y-6">
-                <Activity
-                  title="Leave request submitted"
-                  description="Casual leave"
-                  time="Today"
-                />
-
-                <Activity
-                  title="Attendance marked"
-                  description="Present"
-                  time="Today"
-                />
-
-                <Activity
-                  title="HR request updated"
-                  description="Status changed"
-                  time="Yesterday"
-                />
+                {activities.length ? (
+                  activities.map((activity, index) => (
+                    <Activity
+                      key={`${activity.title}-${index}`}
+                      {...activity}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-[var(--muted)]">
+                    No recent HR activity.
+                  </p>
+                )}
               </div>
             </div>
           </section>
@@ -162,7 +271,7 @@ export default function DashboardPage() {
           {/* Quick actions */}
           <section className="mt-8">
             <div className="mb-4">
-              <p className="text-sm font-semibold">
+              <p className="text-sm font-medium">
                 Quick actions
               </p>
 
@@ -221,7 +330,7 @@ function Stat({
         </span>
       </div>
 
-      <p className="mt-7 text-3xl font-semibold tracking-[-0.03em]">
+      <p className="mt-7 text-3xl font-medium tracking-[-0.04em]">
         {value}
       </p>
 
@@ -236,11 +345,7 @@ function Activity({
   title,
   description,
   time,
-}: {
-  title: string;
-  description: string;
-  time: string;
-}) {
+}: Activity) {
   return (
     <div className="flex items-start gap-3">
       <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
@@ -298,4 +403,36 @@ function QuickAction({
       />
     </a>
   );
+}
+
+function formatRelativeDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const diff =
+    Date.now() - date.getTime();
+
+  const minutes = Math.floor(
+    diff / 60000
+  );
+
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+  });
 }

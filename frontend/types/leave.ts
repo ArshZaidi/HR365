@@ -5,7 +5,12 @@ export interface Leave {
   start_date: string;
   end_date: string;
   reason: string | null;
-  status: "pending" | "approved" | "rejected";
+  status:
+    | "pending"
+    | "approved"
+    | "rejected"
+    | "cancelled";
+  approved_by?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -15,4 +20,6 @@ export interface LeaveSummary {
   pending: number;
   approved: number;
   rejected: number;
+  cancelled: number;
+  approved_days: number;
 }
