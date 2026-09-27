@@ -10,7 +10,7 @@ export default function LeaveSummary({
   const stats = [
     {
       label: "Total requests",
-      value: summary.total,
+      value: summary.total_requests,
     },
     {
       label: "Pending",
@@ -22,7 +22,7 @@ export default function LeaveSummary({
     },
     {
       label: "Approved days",
-      value: summary.approved_days,
+      value: summary.approved_leave_days,
     },
   ];
 

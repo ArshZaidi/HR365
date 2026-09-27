@@ -8,7 +8,7 @@ import PageTransition from "@/components/ui/PageTransition";
 import LeaveSummary from "@/components/leave/LeaveSummary";
 import LeaveTable from "@/components/leave/LeaveTable";
 import LeaveForm from "@/components/leave/LeaveForm";
-
+import LeaveSkeleton from "@/components/leave/LeaveSkeleton";
 import { apiFetch } from "@/lib/api";
 
 import {
@@ -84,34 +84,25 @@ export default function LeavePage() {
           </div>
 
           {loading ? (
-            <div className="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-10 text-sm text-[var(--muted)]">
-              Loading leave data...
+            <LeaveSkeleton />
+            ) : error ? (
+            <div>
+                {error}
             </div>
-          ) : error ? (
-            <div className="mt-10 rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-sm text-red-600">
-              {error}
-            </div>
-          ) : (
+            ) : (
             <>
-              {summary && (
+                {summary && (
                 <div className="mt-10">
-                  <LeaveSummary summary={summary} />
+                    <LeaveSummary summary={summary} />
                 </div>
-              )}
+                )}
 
-              <div className="mt-8 grid gap-8 xl:grid-cols-[1.5fr_0.7fr]">
-
-                <LeaveTable
-                  leaves={leaves}
-                />
-
-                <LeaveForm
-                  onCreated={loadLeaves}
-                />
-
-              </div>
+                <div className="mt-8 grid gap-8 xl:grid-cols-[1.5fr_0.7fr]">
+                <LeaveTable leaves={leaves} />
+                <LeaveForm onCreated={loadLeaves} />
+                </div>
             </>
-          )}
+        )}
 
         </div>
       </PageTransition>

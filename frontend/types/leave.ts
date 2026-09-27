@@ -5,21 +5,25 @@ export interface Leave {
   start_date: string;
   end_date: string;
   reason: string | null;
+
   status:
     | "pending"
     | "approved"
     | "rejected"
-    | "cancelled";
+    | "cancelled"
+    | string;
+
   approved_by?: string | null;
+
   created_at: string;
   updated_at: string;
 }
 
 export interface LeaveSummary {
-  total: number;
+  total_requests: number;
   pending: number;
   approved: number;
   rejected: number;
   cancelled: number;
-  approved_days: number;
+  approved_leave_days: number;
 }
