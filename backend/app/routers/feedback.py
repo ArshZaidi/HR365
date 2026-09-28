@@ -1,12 +1,15 @@
-
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.auth.dependencies import require_employee, require_hr
+
+
+logger = logging.getLogger("hr365.feedback")
 
 
 router = APIRouter(
@@ -19,14 +22,18 @@ class FeedbackRequest(BaseModel):
     question: str = Field(min_length=1)
     answer: str = Field(min_length=1)
 
-    rating: str = Field(pattern="^(positive|negative)$")
+    rating: str = Field(
+        pattern="^(positive|negative)$"
+    )
 
     comment: str | None = None
 
     confidence_score: float | None = None
     confidence_level: str | None = None
 
-    sources: list[dict[str, Any]] = Field(default_factory=list)
+    sources: list[dict[str, Any]] = Field(
+        default_factory=list
+    )
 
 
 @router.post("")
@@ -39,7 +46,8 @@ def submit_feedback(
 
     try:
         response = (
-            client.table("ai_feedback")
+            client
+            .table("ai_feedback")
             .insert(
                 {
                     "user_id": profile["id"],
@@ -47,8 +55,12 @@ def submit_feedback(
                     "answer": payload.answer,
                     "rating": payload.rating,
                     "comment": payload.comment,
-                    "confidence_score": payload.confidence_score,
-                    "confidence_level": payload.confidence_level,
+                    "confidence_score": (
+                        payload.confidence_score
+                    ),
+                    "confidence_level": (
+                        payload.confidence_level
+                    ),
                     "sources": payload.sources,
                 }
             )
@@ -57,14 +69,25 @@ def submit_feedback(
 
         return {
             "message": "Feedback recorded successfully.",
-            "feedback": response.data[0] if response.data else None,
+            "feedback": (
+                response.data[0]
+                if response.data
+                else None
+            ),
         }
 
-    except Exception:
+    except Exception as exc:
+        logger.exception(
+            "Failed to record AI feedback. "
+            "user_id=%s rating=%s",
+            profile.get("id"),
+            payload.rating,
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to record feedback.",
-        )
+        ) from exc
 
 
 @router.get("/me")
@@ -76,13 +99,21 @@ def get_my_feedback(
 
     try:
         response = (
-            client.table("ai_feedback")
+            client
+            .table("ai_feedback")
             .select(
                 "id, question, answer, rating, comment, "
-                "confidence_score, confidence_level, sources, created_at"
+                "confidence_score, confidence_level, "
+                "sources, created_at"
             )
-            .eq("user_id", profile["id"])
-            .order("created_at", desc=True)
+            .eq(
+                "user_id",
+                profile["id"],
+            )
+            .order(
+                "created_at",
+                desc=True,
+            )
             .execute()
         )
 
@@ -90,11 +121,17 @@ def get_my_feedback(
             "feedback": response.data or [],
         }
 
-    except Exception:
+    except Exception as exc:
+        logger.exception(
+            "Failed to retrieve user feedback. "
+            "user_id=%s",
+            profile.get("id"),
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to retrieve feedback.",
-        )
+        ) from exc
 
 
 @router.get("/analysis")
@@ -104,13 +141,13 @@ def feedback_analysis(
     client = auth["client"]
 
     try:
-        # HR-side analysis should only inspect feedback that
-        # the authenticated HR account is allowed to access.
         response = (
-            client.table("ai_feedback")
+            client
+            .table("ai_feedback")
             .select(
                 "id, question, answer, rating, comment, "
-                "confidence_score, confidence_level, sources, created_at"
+                "confidence_score, confidence_level, "
+                "sources, created_at"
             )
             .execute()
         )
@@ -118,12 +155,16 @@ def feedback_analysis(
         feedback = response.data or []
 
         total = len(feedback)
+
         positive = sum(
-            1 for item in feedback
+            1
+            for item in feedback
             if item["rating"] == "positive"
         )
+
         negative = sum(
-            1 for item in feedback
+            1
+            for item in feedback
             if item["rating"] == "negative"
         )
 
@@ -133,17 +174,29 @@ def feedback_analysis(
             if item["rating"] != "negative":
                 continue
 
-            confidence = item.get("confidence_score")
-            sources = item.get("sources") or []
+            confidence = item.get(
+                "confidence_score"
+            )
 
-            if confidence is not None and confidence < 0.60:
+            sources = item.get(
+                "sources"
+            ) or []
+
+            if (
+                confidence is not None
+                and confidence < 0.60
+            ):
                 diagnosis = "low_confidence"
 
             elif not sources:
-                diagnosis = "missing_retrieval_evidence"
+                diagnosis = (
+                    "missing_retrieval_evidence"
+                )
 
             else:
-                diagnosis = "review_retrieval_or_answer"
+                diagnosis = (
+                    "review_retrieval_or_answer"
+                )
 
             negative_examples.append(
                 {
@@ -155,7 +208,9 @@ def feedback_analysis(
                         "confidence_level"
                     ),
                     "diagnosis": diagnosis,
-                    "created_at": item["created_at"],
+                    "created_at": item[
+                        "created_at"
+                    ],
                 }
             )
 
@@ -175,14 +230,19 @@ def feedback_analysis(
             ),
             "negative_examples": negative_examples,
             "recommended_next_step": (
-                "Review negative feedback and improve "
-                "retrieval, chunking, or knowledge-base coverage. "
-                "Then rerun Recall@1, Recall@3, and Recall@5."
+                "Review negative feedback and "
+                "improve retrieval, chunking, or "
+                "knowledge-base coverage. Then "
+                "rerun Recall@1, Recall@3, and Recall@5."
             ),
         }
 
-    except Exception:
+    except Exception as exc:
+        logger.exception(
+            "Failed to analyze AI feedback."
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to analyze feedback.",
-        )
+        ) from exc

@@ -36,13 +36,16 @@ async function fetchProfile(): Promise<HR365Profile | null> {
        * Get the currently authenticated Supabase user.
        */
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+          data: { session },
+          error: sessionError,
+        } =
+          await supabase.auth.getSession();
 
-      if (userError || !user) {
-        cachedProfile = null;
-        return null;
+      const user = session?.user;
+
+      if (sessionError || !user) {
+          cachedProfile = null;
+          return null;
       }
 
       /*
