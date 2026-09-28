@@ -14,6 +14,8 @@ import {
   Users,
 } from "lucide-react";
 
+import { useProfile } from "@/hooks/useProfile";
+
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
@@ -52,6 +54,15 @@ export default function Sidebar({
   onToggle,
 }: SidebarProps) {
   const pathname = usePathname();
+
+  const { profile } = useProfile();
+
+  const normalizedRole =
+    profile?.role?.trim().toLowerCase();
+
+  const isHR =
+    normalizedRole === "hr" ||
+    normalizedRole === "admin";
 
   return (
     <aside
@@ -117,7 +128,11 @@ export default function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
-                title={collapsed ? item.label : undefined}
+                title={
+                  collapsed
+                    ? item.label
+                    : undefined
+                }
                 className={`
                   flex h-10 items-center rounded-lg
                   transition-all duration-200
@@ -145,45 +160,61 @@ export default function Sidebar({
           })}
         </div>
 
-        {!collapsed && (
-          <p className="mb-3 mt-9 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-[var(--sidebar-muted)]">
-            Management
-          </p>
+        {/* HR MANAGEMENT */}
+        {isHR && (
+          <>
+            {!collapsed && (
+              <p className="mb-3 mt-9 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-[var(--sidebar-muted)]">
+                Management
+              </p>
+            )}
+
+            <Link
+              href="/hr"
+              title={
+                collapsed
+                  ? "HR Dashboard"
+                  : undefined
+              }
+              className={`
+                flex h-10 items-center rounded-lg
+                transition-all duration-200
+                ${
+                  collapsed
+                    ? "justify-center"
+                    : "gap-3 px-3"
+                }
+                ${
+                  pathname === "/hr" ||
+                  pathname.startsWith("/hr/")
+                    ? "bg-[var(--sidebar-active)] text-white"
+                    : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-white"
+                }
+              `}
+            >
+              <Users
+                size={17}
+                strokeWidth={1.7}
+                className="shrink-0"
+              />
+
+              {!collapsed && (
+                <span className="text-[13px] tracking-[-0.01em]">
+                  HR Dashboard
+                </span>
+              )}
+            </Link>
+          </>
         )}
-
-        <Link
-          href="/hr"
-          title={collapsed ? "HR Dashboard" : undefined}
-          className={`
-            flex h-10 items-center rounded-lg
-            transition-all duration-200
-            ${collapsed ? "justify-center" : "gap-3 px-3"}
-            ${
-              pathname.startsWith("/hr")
-                ? "bg-[var(--sidebar-active)] text-white"
-                : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-white"
-            }
-          `}
-        >
-          <Users
-            size={17}
-            strokeWidth={1.7}
-            className="shrink-0"
-          />
-
-          {!collapsed && (
-            <span className="text-[13px] tracking-[-0.01em]">
-              HR Dashboard
-            </span>
-          )}
-        </Link>
       </nav>
 
       {/* Bottom actions */}
       <div className="shrink-0 border-t border-white/[0.06] p-3">
         <Link
           href="/settings"
-          title={collapsed ? "Settings" : undefined}
+          title={
+            collapsed ? "Settings" : undefined
+          }
           className={`
             flex h-10 items-center rounded-lg
             text-[var(--sidebar-muted)]
@@ -191,7 +222,10 @@ export default function Sidebar({
             ${collapsed ? "justify-center" : "gap-3 px-3"}
           `}
         >
-          <Settings size={17} strokeWidth={1.7} />
+          <Settings
+            size={17}
+            strokeWidth={1.7}
+          />
 
           {!collapsed && (
             <span className="text-[13px]">
@@ -201,6 +235,7 @@ export default function Sidebar({
         </Link>
 
         <button
+          type="button"
           title={collapsed ? "Sign out" : undefined}
           className={`
             mt-1 flex h-10 w-full items-center rounded-lg
@@ -209,7 +244,10 @@ export default function Sidebar({
             ${collapsed ? "justify-center" : "gap-3 px-3"}
           `}
         >
-          <LogOut size={17} strokeWidth={1.7} />
+          <LogOut
+            size={17}
+            strokeWidth={1.7}
+          />
 
           {!collapsed && (
             <span className="text-[13px]">
@@ -219,8 +257,9 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Collapse control */}
+      {/* Collapse */}
       <button
+        type="button"
         onClick={onToggle}
         aria-label="Toggle sidebar"
         className="

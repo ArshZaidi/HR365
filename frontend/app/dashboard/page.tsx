@@ -19,6 +19,8 @@ import PageTransition from "@/components/ui/PageTransition";
 import Magnetic from "@/components/ui/Magnetic";
 import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 import { apiFetch } from "@/lib/api";
+import { getGreeting } from "@/lib/greeting";
+import { useProfile } from "@/hooks/useProfile";
 
 interface DashboardData {
   attendance: number;
@@ -46,17 +48,12 @@ interface HRRequest {
 }
 
 export default function DashboardPage() {
-  const [data, setData] =
-    useState<DashboardData | null>(null);
+  const { profile, loading: profileLoading } = useProfile();
 
-  const [requests, setRequests] =
-    useState<HRRequest[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [requests, setRequests] = useState<HRRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function loadDashboard() {
     try {
@@ -85,52 +82,47 @@ export default function DashboardPage() {
         }>("/api/hr-requests/me"),
       ]);
 
-      const requestRecords =
-        requestsResponse.requests || [];
+      const requestRecords = requestsResponse.requests || [];
 
-      const activeRequests =
-        requestRecords.filter(
-          (request) =>
-            request.status !== "resolved" &&
-            request.status !== "closed"
-        );
+      /*
+       * HR365 request statuses:
+       * open → in_progress → resolved → closed
+       *
+       * "Pending requests" is represented by requests
+       * currently in the open state.
+       */
+      const openRequests = requestRecords.filter(
+        (request) =>
+          request.status === "open" ||
+          request.status === "in_progress",
+      );
 
-      const pendingRequests =
-        requestRecords.filter(
-          (request) =>
-            request.status === "pending"
-        );
+      const pendingRequests = requestRecords.filter(
+        (request) => request.status === "open",
+      );
 
       setData({
         attendance:
-          attendanceResponse.summary
-            ?.attendance_percentage ?? 0,
+          attendanceResponse.summary?.attendance_percentage ?? 0,
 
         approvedLeaveDays:
-          leaveResponse.summary
-            ?.approved_leave_days ?? 0,
+          leaveResponse.summary?.approved_leave_days ?? 0,
 
-        openRequests:
-          activeRequests.length,
+        openRequests: openRequests.length,
 
-        totalRequests:
-          requestRecords.length,
+        totalRequests: requestRecords.length,
 
-        pendingRequests:
-          pendingRequests.length,
+        pendingRequests: pendingRequests.length,
       });
 
       setRequests(requestRecords);
     } catch (err) {
-      console.error(
-        "Unable to load dashboard:",
-        err
-      );
+      console.error("Unable to load dashboard:", err);
 
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to load your dashboard."
+          : "Unable to load your dashboard.",
       );
     } finally {
       setLoading(false);
@@ -147,7 +139,7 @@ export default function DashboardPage() {
       .sort(
         (a, b) =>
           new Date(b.created_at).getTime() -
-          new Date(a.created_at).getTime()
+          new Date(a.created_at).getTime(),
       )
       .slice(0, 4)
       .map((request) => ({
@@ -159,30 +151,39 @@ export default function DashboardPage() {
             : "HR request",
           formatLabel(request.status),
         ].join(" · "),
-        time: formatRelativeDate(
-          request.created_at
-        ),
+        time: formatRelativeDate(request.created_at),
         status: request.status,
       }));
   }, [requests]);
 
-  const today = new Intl.DateTimeFormat(
-    "en-IN",
-    {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    }
-  ).format(new Date());
+  const recentRequests = useMemo(() => {
+    return requests
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime(),
+      )
+      .slice(0, 5);
+  }, [requests]);
+
+  const today = new Intl.DateTimeFormat("en-IN", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
+
+  const firstName =
+    profile?.full_name?.trim().split(/\s+/)[0] || "there";
+
+  const isLoading = loading || profileLoading;
 
   return (
     <AppShell>
       <PageTransition>
         <main className="min-h-screen">
-
           <div className="mx-auto max-w-[1400px] px-6 py-10 lg:px-10">
-
-            {loading ? (
+            {isLoading ? (
               <DashboardSkeleton />
             ) : error ? (
               <DashboardError
@@ -196,21 +197,29 @@ export default function DashboardPage() {
                 ================================================= */}
 
                 <section className="flex flex-col justify-between gap-7 md:flex-row md:items-end">
-
                   <div>
                     <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
                       {today}
                     </p>
 
                     <h1 className="mt-3 text-4xl font-medium tracking-[-0.05em] sm:text-5xl">
-                      Good morning, Arsh.
+                      {getGreeting()}, {firstName}.
                     </h1>
 
                     <p className="mt-4 max-w-2xl text-[15px] leading-7 text-[var(--muted)]">
-                      Here's a quick look at your
-                      HR workspace and the things
-                      that may need your attention.
+                      Here&apos;s a quick look at your HR
+                      workspace and the things that may
+                      need your attention.
                     </p>
+
+                    {profile?.designation && (
+                      <p className="mt-2 text-xs text-[var(--muted)]">
+                        {profile.designation}
+                        {profile.department
+                          ? ` · ${profile.department}`
+                          : ""}
+                      </p>
+                    )}
                   </div>
 
                   <Magnetic strength={0.12}>
@@ -223,7 +232,6 @@ export default function DashboardPage() {
                       <ArrowUpRight size={15} />
                     </Link>
                   </Magnetic>
-
                 </section>
 
                 {/* =================================================
@@ -231,12 +239,11 @@ export default function DashboardPage() {
                 ================================================= */}
 
                 <section className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--border)] sm:grid-cols-2 xl:grid-cols-4">
-
                   <Stat
                     icon={<CalendarDays size={18} />}
                     label="Attendance"
                     value={`${formatNumber(
-                      data?.attendance ?? 0
+                      data?.attendance ?? 0,
                     )}%`}
                     description="Current attendance"
                   />
@@ -251,9 +258,7 @@ export default function DashboardPage() {
                   <Stat
                     icon={<FileText size={18} />}
                     label="Open requests"
-                    value={String(
-                      data?.openRequests ?? 0
-                    )}
+                    value={String(data?.openRequests ?? 0)}
                     description={
                       data?.pendingRequests
                         ? `${data.pendingRequests} pending review`
@@ -264,12 +269,9 @@ export default function DashboardPage() {
                   <Stat
                     icon={<CheckCircle2 size={18} />}
                     label="HR activity"
-                    value={String(
-                      data?.totalRequests ?? 0
-                    )}
+                    value={String(data?.totalRequests ?? 0)}
                     description="Total requests"
                   />
-
                 </section>
 
                 {/* =================================================
@@ -277,14 +279,12 @@ export default function DashboardPage() {
                 ================================================= */}
 
                 <section className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
-
                   {/* AI */}
-                  <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 lg:p-10">
 
+                  <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 lg:p-10">
                     <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[var(--accent)] opacity-[0.06] blur-3xl" />
 
                     <div className="relative">
-
                       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--foreground)] text-[var(--background)]">
                         <Bot size={20} />
                       </div>
@@ -314,15 +314,13 @@ export default function DashboardPage() {
                           <ArrowUpRight size={15} />
                         </Link>
                       </Magnetic>
-
                     </div>
                   </div>
 
                   {/* Activity */}
+
                   <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-7">
-
                     <div className="flex items-start justify-between gap-4">
-
                       <div>
                         <p className="text-sm font-medium">
                           Recent activity
@@ -339,28 +337,23 @@ export default function DashboardPage() {
                       >
                         View all
                       </Link>
-
                     </div>
 
                     <div className="mt-7">
                       {activities.length > 0 ? (
                         <div className="space-y-6">
-                          {activities.map(
-                            (activity) => (
-                              <Activity
-                                key={activity.id}
-                                {...activity}
-                              />
-                            )
-                          )}
+                          {activities.map((activity) => (
+                            <Activity
+                              key={activity.id}
+                              {...activity}
+                            />
+                          ))}
                         </div>
                       ) : (
                         <EmptyActivity />
                       )}
                     </div>
-
                   </div>
-
                 </section>
 
                 {/* =================================================
@@ -368,9 +361,7 @@ export default function DashboardPage() {
                 ================================================= */}
 
                 <section className="mt-8 overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)]">
-
                   <div className="flex items-center justify-between border-b border-[var(--border)] px-7 py-6">
-
                     <div>
                       <p className="text-sm font-medium">
                         Request overview
@@ -388,31 +379,16 @@ export default function DashboardPage() {
                       All requests
                       <ArrowUpRight size={13} />
                     </Link>
-
                   </div>
 
-                  {requests.length > 0 ? (
+                  {recentRequests.length > 0 ? (
                     <div className="divide-y divide-[var(--border)]">
-
-                      {requests
-                        .slice()
-                        .sort(
-                          (a, b) =>
-                            new Date(
-                              b.created_at
-                            ).getTime() -
-                            new Date(
-                              a.created_at
-                            ).getTime()
-                        )
-                        .slice(0, 5)
-                        .map((request) => (
-                          <RequestRow
-                            key={request.id}
-                            request={request}
-                          />
-                        ))}
-
+                      {recentRequests.map((request) => (
+                        <RequestRow
+                          key={request.id}
+                          request={request}
+                        />
+                      ))}
                     </div>
                   ) : (
                     <div className="px-7 py-14 text-center">
@@ -426,11 +402,11 @@ export default function DashboardPage() {
                       </p>
 
                       <p className="mt-1 text-xs text-[var(--muted)]">
-                        Your submitted requests will appear here.
+                        Your submitted requests will appear
+                        here.
                       </p>
                     </div>
                   )}
-
                 </section>
 
                 {/* =================================================
@@ -438,7 +414,6 @@ export default function DashboardPage() {
                 ================================================= */}
 
                 <section className="mt-8">
-
                   <div className="mb-4">
                     <p className="text-sm font-medium">
                       Quick actions
@@ -450,7 +425,6 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-3">
-
                     <QuickAction
                       icon={<Bot size={18} />}
                       title="Ask HR365"
@@ -471,16 +445,11 @@ export default function DashboardPage() {
                       description="Track your requests"
                       href="/requests"
                     />
-
                   </div>
-
                 </section>
-
               </>
             )}
-
           </div>
-
         </main>
       </PageTransition>
     </AppShell>
@@ -488,7 +457,7 @@ export default function DashboardPage() {
 }
 
 /* ================================================================
-   COMPONENTS
+   STAT
 ================================================================ */
 
 function Stat({
@@ -503,8 +472,7 @@ function Stat({
   description: string;
 }) {
   return (
-    <div className="bg-[var(--surface)] p-6">
-
+    <div className="bg-[var(--surface)] p-6 transition-colors hover:bg-[var(--surface-hover)]">
       <div className="flex items-center gap-3 text-[var(--muted)]">
         {icon}
 
@@ -520,10 +488,13 @@ function Stat({
       <p className="mt-1 text-xs text-[var(--muted)]">
         {description}
       </p>
-
     </div>
   );
 }
+
+/* ================================================================
+   ACTIVITY
+================================================================ */
 
 function Activity({
   title,
@@ -531,27 +502,22 @@ function Activity({
   time,
   status,
 }: Activity) {
+  const completed =
+    status === "resolved" ||
+    status === "closed";
+
   return (
     <div className="flex items-start gap-3">
-
       <div
-        className={`
-          mt-1.5
-          h-2
-          w-2
-          shrink-0
-          rounded-full
-          ${
-            status === "resolved" ||
-            status === "closed"
-              ? "bg-emerald-500"
-              : "bg-[var(--accent)]"
-          }
-        `}
+        className={[
+          "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+          completed
+            ? "bg-emerald-500"
+            : "bg-[var(--accent)]",
+        ].join(" ")}
       />
 
       <div className="min-w-0 flex-1">
-
         <p className="truncate text-sm font-medium">
           {title}
         </p>
@@ -559,16 +525,18 @@ function Activity({
         <p className="mt-1 text-xs text-[var(--muted)]">
           {description}
         </p>
-
       </div>
 
       <span className="shrink-0 text-[10px] text-[var(--muted)]">
         {time}
       </span>
-
     </div>
   );
 }
+
+/* ================================================================
+   REQUEST ROW
+================================================================ */
 
 function RequestRow({
   request,
@@ -579,18 +547,19 @@ function RequestRow({
     request.status === "resolved" ||
     request.status === "closed";
 
+  const inProgress =
+    request.status === "in_progress";
+
   return (
     <Link
       href="/requests"
       className="group flex items-center gap-4 px-7 py-5 transition-colors hover:bg-[var(--surface-hover)]"
     >
-
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--muted)] transition-colors group-hover:bg-[var(--foreground)] group-hover:text-[var(--background)]">
         <FileText size={16} />
       </div>
 
       <div className="min-w-0 flex-1">
-
         <p className="truncate text-sm font-medium">
           {request.subject || "HR request"}
         </p>
@@ -599,39 +568,30 @@ function RequestRow({
           {request.category
             ? formatLabel(request.category)
             : "HR request"}
-
           {" · "}
-
-          {formatRelativeDate(
-            request.created_at
-          )}
+          {formatRelativeDate(request.created_at)}
         </p>
-
       </div>
 
       <span
-        className={`
-          shrink-0
-          rounded-full
-          px-3
-          py-1
-          text-[10px]
-          font-medium
-          ${
-            closed
-              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              : request.status === "pending"
-                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                : "bg-black/[0.05] text-[var(--muted)] dark:bg-white/[0.06]"
-          }
-        `}
+        className={[
+          "shrink-0 rounded-full px-3 py-1 text-[10px] font-medium",
+          closed
+            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            : inProgress
+              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+              : "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        ].join(" ")}
       >
         {formatLabel(request.status)}
       </span>
-
     </Link>
   );
 }
+
+/* ================================================================
+   QUICK ACTION
+================================================================ */
 
 function QuickAction({
   icon,
@@ -649,7 +609,6 @@ function QuickAction({
       href={href}
       className="group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--foreground)]"
     >
-
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground)] transition group-hover:bg-[var(--foreground)] group-hover:text-[var(--background)]">
         {icon}
       </div>
@@ -668,31 +627,44 @@ function QuickAction({
         size={15}
         className="ml-auto text-[var(--muted)] transition group-hover:text-[var(--foreground)]"
       />
-
     </Link>
   );
 }
 
+/* ================================================================
+   EMPTY ACTIVITY
+================================================================ */
+
 function EmptyActivity() {
   return (
-    <div className="rounded-2xl border border-dashed border-[var(--border)] px-5 py-8 text-center">
-
+    <div className="rounded-2xl border border-dashed border-[var(--border)] px-5 py-10 text-center">
       <MessageSquareText
-        size={18}
+        size={20}
         className="mx-auto text-[var(--muted)]"
       />
 
       <p className="mt-3 text-sm font-medium">
-        Nothing recent
+        No recent activity
       </p>
 
-      <p className="mt-1 text-xs text-[var(--muted)]">
-        Your HR activity will appear here.
+      <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+        Your HR request activity will appear here.
       </p>
 
+      <Link
+        href="/requests"
+        className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[var(--foreground)] hover:underline"
+      >
+        View requests
+        <ArrowUpRight size={12} />
+      </Link>
     </div>
   );
 }
+
+/* ================================================================
+   ERROR
+================================================================ */
 
 function DashboardError({
   message,
@@ -703,15 +675,13 @@ function DashboardError({
 }) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-
       <div className="w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-red-500/10 text-red-600 dark:text-red-400">
-          <RefreshCw size={18} />
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-600">
+          <RefreshCw size={20} />
         </div>
 
         <h2 className="mt-5 text-lg font-medium">
-          Couldn't load your dashboard
+          Unable to load your dashboard
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
@@ -726,9 +696,7 @@ function DashboardError({
           <RefreshCw size={14} />
           Try again
         </button>
-
       </div>
-
     </div>
   );
 }
@@ -737,71 +705,56 @@ function DashboardError({
    HELPERS
 ================================================================ */
 
-function formatLabel(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) =>
-      letter.toUpperCase()
-    );
+function formatNumber(value: number) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+
+  return value.toFixed(1);
 }
 
-function formatNumber(value: number) {
-  return Number.isInteger(value)
-    ? String(value)
-    : value.toFixed(1);
+function formatLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase(),
+    );
 }
 
 function formatRelativeDate(value: string) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "";
+    return "Recently";
   }
 
-  const diff =
-    Date.now() - date.getTime();
+  const diff = Date.now() - date.getTime();
 
-  if (diff < 0) {
-    return "Upcoming";
-  }
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
 
-  const minutes = Math.floor(
-    diff / 60000
-  );
-
-  if (minutes < 1) {
+  if (diff < minute) {
     return "Just now";
   }
 
-  if (minutes < 60) {
+  if (diff < hour) {
+    const minutes = Math.floor(diff / minute);
     return `${minutes}m ago`;
   }
 
-  const hours = Math.floor(
-    minutes / 60
-  );
-
-  if (hours < 24) {
+  if (diff < day) {
+    const hours = Math.floor(diff / hour);
     return `${hours}h ago`;
   }
 
-  const days = Math.floor(
-    hours / 24
-  );
-
-  if (days === 1) {
-    return "Yesterday";
-  }
-
-  if (days < 7) {
+  if (diff < 7 * day) {
+    const days = Math.floor(diff / day);
     return `${days}d ago`;
   }
 
-  return date.toLocaleDateString(
-    "en-IN",
-    {
-      day: "numeric",
-      month: "short",
-    }
-  );
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+  }).format(date);
 }

@@ -112,3 +112,23 @@ button {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
 }
+
+:root {
+  --background: #f7f6f2;
+  --foreground: #171717;
+  --surface: #ffffff;
+  --surface-hover: #f0efeb;
+  --border: rgba(23, 23, 23, 0.1);
+  --muted: #737373;
+  --accent: #d97757;
+}
+
+.dark {
+  --background: #111110;
+  --foreground: #f4f3ef;
+  --surface: #191918;
+  --surface-hover: #242422;
+  --border: rgba(255, 255, 255, 0.1);
+  --muted: #a5a5a0;
+  --accent: #e38a68;
+}
