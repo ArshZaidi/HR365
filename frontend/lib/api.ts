@@ -6,124 +6,35 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:8000";
 
-let cachedAccessToken: string | null = null;
-let authListenerInitialized = false;
-let refreshPromise: Promise<string | null> | null = null;
-
-function initializeAuthCache() {
-  if (authListenerInitialized) {
-    return;
-  }
-
-  authListenerInitialized = true;
-
-  supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      cachedAccessToken =
-        session?.access_token ?? null;
-    },
-  );
-}
-
-async function getAccessToken(): Promise<string | null> {
-  initializeAuthCache();
-
-  if (cachedAccessToken) {
-    return cachedAccessToken;
-  }
-
+export async function apiFetch<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  cachedAccessToken =
-    session?.access_token ?? null;
-
-  return cachedAccessToken;
-}
-
-async function refreshAccessToken(): Promise<string | null> {
-  if (refreshPromise) {
-    return refreshPromise;
-  }
-
-  refreshPromise = (async () => {
-    try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.refreshSession();
-
-      if (error || !session?.access_token) {
-        cachedAccessToken = null;
-        return null;
-      }
-
-      cachedAccessToken =
-        session.access_token;
-
-      return session.access_token;
-    } finally {
-      refreshPromise = null;
-    }
-  })();
-
-  return refreshPromise;
-}
-
-async function performRequest(
-  endpoint: string,
-  options: RequestInit,
-  token: string | null,
-) {
-  const headers = new Headers(
-    options.headers,
-  );
+  const headers = new Headers(options.headers);
 
   headers.set(
     "Content-Type",
-    "application/json",
+    "application/json"
   );
 
-  if (token) {
+  if (session?.access_token) {
     headers.set(
       "Authorization",
-      `Bearer ${token}`,
+      `Bearer ${session.access_token}`
     );
   }
 
-  return fetch(
+  const response = await fetch(
     `${API_URL}${endpoint}`,
     {
       ...options,
       headers,
-    },
-  );
-}
-
-export async function apiFetch<T>(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<T> {
-  let token = await getAccessToken();
-
-  let response = await performRequest(
-    endpoint,
-    options,
-    token,
-  );
-
-  if (response.status === 401) {
-    token = await refreshAccessToken();
-
-    if (token) {
-      response = await performRequest(
-        endpoint,
-        options,
-        token,
-      );
     }
-  }
+  );
 
   if (!response.ok) {
     let message =
@@ -135,9 +46,7 @@ export async function apiFetch<T>(
 
       message =
         data.detail || message;
-    } catch {
-      // Keep generic message.
-    }
+    } catch {}
 
     throw new Error(message);
   }

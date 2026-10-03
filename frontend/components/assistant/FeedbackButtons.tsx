@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ThumbsDown, ThumbsUp } from "lucide-react";
+
 import { apiFetch } from "@/lib/api";
 import type { ChatMessage } from "@/types/assistant";
 
@@ -34,8 +36,7 @@ export default function FeedbackButtons({
           answer: message.content,
           rating,
           confidence_score: message.response.confidence?.score ?? null,
-          confidence_level:
-            message.response.confidence?.level ?? null,
+          confidence_level: message.response.confidence?.level ?? null,
           sources: message.response.sources ?? [],
         }),
       });
@@ -44,7 +45,7 @@ export default function FeedbackButtons({
       setStatus(
         rating === "positive"
           ? "Thanks — glad this helped."
-          : "Thanks — your feedback has been recorded."
+          : "Thanks — your feedback has been recorded.",
       );
     } catch (error) {
       const messageText =
@@ -58,27 +59,36 @@ export default function FeedbackButtons({
     }
   };
 
+  const baseBtn = [
+    "flex h-8 w-8 items-center justify-center rounded-lg",
+    "transition-all duration-300 ease-[var(--ease-out-soft)]",
+    "disabled:cursor-not-allowed disabled:opacity-40",
+  ].join(" ");
+
+  const idle =
+    "text-[var(--muted)] hover:bg-[var(--surface-hover)]/70 hover:text-[var(--foreground)]";
+
   return (
-    <div className="mt-4 flex flex-col gap-2">
-      <div className="flex items-center gap-2">
+    <div className="mt-5 flex flex-col gap-2">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           onClick={() => submit("positive")}
           disabled={loading || !!selected}
           aria-label="Helpful"
-          className={`
-            flex h-9 w-9 items-center justify-center rounded-lg
-            border transition-all
-            ${
-              selected === "positive"
-                ? "border-black/15 bg-black/[0.06] text-black dark:border-white/15 dark:bg-white/[0.08] dark:text-white"
-                : "border-transparent text-black/35 hover:border-black/[0.08] hover:bg-black/[0.04] hover:text-black/65 dark:text-white/35 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.04] dark:hover:text-white/65"
-            }
-            disabled:cursor-not-allowed
-            disabled:opacity-50
-          `}
+          className={`${baseBtn} ${
+            selected === "positive" ? "" : idle
+          }`}
+          style={
+            selected === "positive"
+              ? {
+                  background: "var(--success-soft)",
+                  color: "var(--success)",
+                }
+              : undefined
+          }
         >
-          <span className="text-lg">♧</span>
+          <ThumbsUp size={14} />
         </button>
 
         <button
@@ -86,26 +96,24 @@ export default function FeedbackButtons({
           onClick={() => submit("negative")}
           disabled={loading || !!selected}
           aria-label="Not helpful"
-          className={`
-            flex h-9 w-9 items-center justify-center rounded-lg
-            border transition-all
-            ${
-              selected === "negative"
-                ? "border-black/15 bg-black/[0.06] text-black dark:border-white/15 dark:bg-white/[0.08] dark:text-white"
-                : "border-transparent text-black/35 hover:border-black/[0.08] hover:bg-black/[0.04] hover:text-black/65 dark:text-white/35 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.04] dark:hover:text-white/65"
-            }
-            disabled:cursor-not-allowed
-            disabled:opacity-50
-          `}
+          className={`${baseBtn} ${
+            selected === "negative" ? "" : idle
+          }`}
+          style={
+            selected === "negative"
+              ? {
+                  background: "var(--danger-soft)",
+                  color: "var(--danger)",
+                }
+              : undefined
+          }
         >
-          <span className="text-lg rotate-180">♧</span>
+          <ThumbsDown size={14} />
         </button>
       </div>
 
       {status && (
-        <p className="text-xs text-black/40 dark:text-white/40">
-          {status}
-        </p>
+        <p className="text-[11.5px] text-[var(--muted)]">{status}</p>
       )}
     </div>
   );

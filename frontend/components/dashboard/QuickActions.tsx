@@ -1,11 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Bot,
-  CalendarPlus,
-  ClipboardList,
-} from "lucide-react";
+import { Bot, CalendarPlus, ClipboardList } from "lucide-react";
 
 const actions = [
   {
@@ -30,7 +26,7 @@ const actions = [
 
 export default function QuickActions() {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-3">
       {actions.map((action) => {
         const Icon = action.icon;
 
@@ -38,17 +34,17 @@ export default function QuickActions() {
           <Link
             key={action.href}
             href={action.href}
-            className="group rounded-2xl border border-gray-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm"
+            className="group rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-xs)] transition-all duration-300 ease-[var(--ease-out-soft)] hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-md)]"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition group-hover:bg-gray-900 group-hover:text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--surface-hover)] text-[var(--foreground)] transition-all duration-300 ease-[var(--ease-out-soft)] group-hover:bg-[var(--foreground)] group-hover:text-[var(--background)]">
               <Icon size={19} />
             </div>
 
-            <p className="mt-4 text-sm font-medium text-gray-900">
+            <p className="mt-5 text-[14.5px] font-medium text-[var(--foreground)]">
               {action.title}
             </p>
 
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1.5 text-[13px] text-[var(--muted)]">
               {action.description}
             </p>
           </Link>

@@ -15,6 +15,20 @@ export interface Confidence {
   relevant_chunk_count?: number;
 }
 
+export interface LeaveAction {
+  type: "create_leave";
+  status:
+    | "pending_confirmation"
+    | "executing"
+    | "completed"
+    | "cancelled";
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason?: string | null;
+  confirmation_text?: string;
+}
+
 export interface AskResponse {
   answer: string;
   sources: Source[];
@@ -29,4 +43,5 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   response?: AskResponse;
+  action?: LeaveAction;
 }

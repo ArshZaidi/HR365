@@ -12,40 +12,40 @@ export default function RecentActivity({
   activities,
 }: RecentActivityProps) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6">
+    <div className="rounded-[26px] border border-[var(--border)] bg-[var(--surface)] p-7 shadow-[var(--shadow-sm)]">
       <div>
-        <p className="text-sm font-medium text-gray-900">
+        <p className="text-[15px] font-medium text-[var(--foreground)]">
           Recent activity
         </p>
 
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1.5 text-[13px] text-[var(--muted)]">
           Your latest HR activity
         </p>
       </div>
 
-      <div className="mt-5 divide-y divide-gray-100">
+      <div className="mt-6 divide-y divide-[var(--border)]">
         {activities.length === 0 ? (
-          <p className="py-4 text-sm text-gray-400">
+          <p className="py-4 text-[14px] text-[var(--muted)]">
             No recent activity.
           </p>
         ) : (
           activities.map((activity, index) => (
             <div
               key={`${activity.title}-${index}`}
-              className="flex items-start gap-3 py-4 first:pt-0 last:pb-0"
+              className="flex items-start gap-3.5 py-5 first:pt-0 last:pb-0"
             >
-              <div className="mt-1.5 h-2 w-2 rounded-full bg-blue-500" />
+              <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--accent)] ring-4 ring-[var(--accent-soft)]" />
 
               <div className="min-w-0">
-                <p className="text-sm text-gray-800">
+                <p className="text-[14.5px] font-medium text-[var(--foreground)]">
                   {activity.title}
                 </p>
 
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1.5 text-[13px] text-[var(--muted)]">
                   {activity.description}
                 </p>
 
-                <p className="mt-1 text-[11px] text-gray-400">
+                <p className="mt-1.5 text-[11.5px] font-medium text-[var(--muted)]">
                   {activity.date}
                 </p>
               </div>

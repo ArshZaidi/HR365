@@ -8,38 +8,44 @@ interface SourceCitationProps {
 export default function SourceCitation({
   sources,
 }: SourceCitationProps) {
-  if (!sources || sources.length === 0) {
-    return null;
-  }
+  if (!sources || sources.length === 0) return null;
 
   return (
-    <div className="mt-5">
-      <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
-        Sources
-      </p>
+    <details className="mt-5 group">
+      <summary className="cursor-pointer list-none text-[11.5px] font-semibold tracking-[0.12em] text-[var(--muted)] uppercase transition-colors duration-200 hover:text-[var(--foreground)]">
+        {sources.length} source{sources.length !== 1 ? "s" : ""}
+      </summary>
 
-      <div className="space-y-2">
+      <div className="mt-3 space-y-2">
         {sources.map((source, index) => {
           const filename =
-            source.source ||
-            source.filename ||
-            `Source ${index + 1}`;
+            source.source || source.filename || `Source ${index + 1}`;
 
           return (
             <div
               key={`${filename}-${index}`}
-              className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5"
+              className="
+                flex items-center gap-3 rounded-xl
+                border border-[var(--border)]
+                bg-[var(--surface)]/40 px-3 py-2.5 backdrop-blur-xl
+              "
             >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-hover)]">
+              <span
+                className="
+                  flex h-7 w-7 shrink-0 items-center justify-center rounded-lg
+                  text-[var(--accent-3)]
+                "
+                style={{ background: "var(--accent-3-soft)" }}
+              >
                 <FileText size={13} />
-              </div>
+              </span>
 
-              <span className="min-w-0 flex-1 truncate text-xs">
+              <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
                 {filename}
               </span>
 
               {typeof source.score === "number" && (
-                <span className="text-[10px] text-[var(--muted)]">
+                <span className="shrink-0 text-[11px] font-medium text-[var(--muted)] tabular-nums">
                   {Math.round(source.score * 100)}%
                 </span>
               )}
@@ -47,6 +53,6 @@ export default function SourceCitation({
           );
         })}
       </div>
-    </div>
+    </details>
   );
 }

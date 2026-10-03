@@ -9,55 +9,51 @@ import LeaveSummary from "@/components/leave/LeaveSummary";
 import LeaveTable from "@/components/leave/LeaveTable";
 import LeaveForm from "@/components/leave/LeaveForm";
 import LeaveSkeleton from "@/components/leave/LeaveSkeleton";
-import { apiFetch } from "@/lib/api";
-
 import {
-  Leave,
-  LeaveSummary as LeaveSummaryType,
-} from "@/types/leave";
+  EyebrowPill,
+  PageBody,
+  PageHeader,
+} from "@/components/ui/premium";
+
+import { apiFetch } from "@/lib/api";
+import { Leave, LeaveSummary as LeaveSummaryType } from "@/types/leave";
 
 export default function LeavePage() {
-  const [summary, setSummary] =
-    useState<LeaveSummaryType | null>(null);
+  const [summary, setSummary] = useState<LeaveSummaryType | null>(null);
+  const [leaves, setLeaves] = useState<Leave[]>([]);
 
-  const [leaves, setLeaves] =
-    useState<Leave[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function loadLeaves() {
     try {
       setLoading(true);
       setError("");
 
-      const [
-        summaryResponse,
-        leavesResponse,
-      ] = await Promise.all([
-        apiFetch<{
-          summary: LeaveSummaryType;
-        }>("/api/leaves/me/summary"),
-
-        apiFetch<{
-          records: Leave[];
-        }>("/api/leaves/me"),
+      const [summaryResponse, leavesResponse] = await Promise.all([
+        apiFetch<{ summary: LeaveSummaryType }>("/api/leaves/me/summary"),
+        apiFetch<{ records: Leave[] }>("/api/leaves/me"),
       ]);
 
       setSummary(summaryResponse.summary);
       setLeaves(leavesResponse.records || []);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load leave data."
+        err instanceof Error ? err.message : "Unable to load leave data.",
       );
     } finally {
       setLoading(false);
     }
+  }
+
+  /* ─── FEATURE ADDITION: cancel a leave request ─── */
+  async function cancelLeave(leaveId: string) {
+    await apiFetch(`/api/leaves/${leaveId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+
+    await loadLeaves();
   }
 
   useEffect(() => {
@@ -67,44 +63,42 @@ export default function LeavePage() {
   return (
     <AppShell>
       <PageTransition>
-        <div className="mx-auto max-w-[1400px] px-6 py-10 lg:px-10">
-
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
-              Employee
-            </p>
-
-            <h1 className="mt-2 text-4xl font-medium tracking-[-0.045em]">
-              Leave
-            </h1>
-
-            <p className="mt-3 text-sm text-[var(--muted)]">
-              Manage your leave requests and view their status.
-            </p>
-          </div>
+        <main className="min-h-full">
+          <PageHeader
+            eyebrow={<EyebrowPill tone={4}>Employee</EyebrowPill>}
+            title="Leave"
+            description="Manage your leave requests and view their status."
+          />
 
           {loading ? (
-            <LeaveSkeleton />
-            ) : error ? (
-            <div>
+            <PageBody>
+              <LeaveSkeleton />
+            </PageBody>
+          ) : error ? (
+            <PageBody>
+              <div
+                className="
+                  rounded-2xl border p-5 text-[14px]
+                  border-[var(--glass-border)]
+                  bg-[var(--glass-bg)] backdrop-blur-2xl
+                  shadow-[0_1px_0_var(--glass-hi)_inset,var(--shadow-sm)]
+                "
+                style={{ color: "var(--danger)" }}
+              >
                 {error}
-            </div>
-            ) : (
-            <>
-                {summary && (
-                <div className="mt-10">
-                    <LeaveSummary summary={summary} />
-                </div>
-                )}
+              </div>
+            </PageBody>
+          ) : (
+            <PageBody>
+              {summary && <LeaveSummary summary={summary} />}
 
-                <div className="mt-8 grid gap-8 xl:grid-cols-[1.5fr_0.7fr]">
-                <LeaveTable leaves={leaves} />
+              <div className="grid gap-6 xl:grid-cols-[1.5fr_0.7fr]">
+                <LeaveTable leaves={leaves} onCancel={cancelLeave} />
                 <LeaveForm onCreated={loadLeaves} />
-                </div>
-            </>
-        )}
-
-        </div>
+              </div>
+            </PageBody>
+          )}
+        </main>
       </PageTransition>
     </AppShell>
   );

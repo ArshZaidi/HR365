@@ -1,5 +1,7 @@
 "use client";
 
+import { ArrowRight, UserPlus, UserX } from "lucide-react";
+
 interface Assignment {
   task_id: string;
   task_title: string;
@@ -31,54 +33,83 @@ export default function TaskReassignment({
   data,
 }: TaskReassignmentProps) {
   if (!data) return null;
-
-  if (
-    data.tasks_found === 0 &&
-    !data.error
-  ) {
-    return null;
-  }
+  if (data.tasks_found === 0 && !data.error) return null;
 
   return (
-    <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/40 p-5">
+    <div
+      className="
+        mt-5 rounded-2xl border p-5
+        border-[var(--glass-border)]
+        bg-[var(--glass-bg)] backdrop-blur-2xl
+        shadow-[0_1px_0_var(--glass-hi)_inset,var(--shadow-xs)]
+      "
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h4 className="font-medium text-[var(--foreground)]">
+          <p className="font-display text-[15.5px] font-medium tracking-[-0.01em]">
             Task reassignment
-          </h4>
-
-          <p className="mt-1 text-sm text-[var(--muted)]">
+          </p>
+          <p className="mt-1 text-[12.5px] text-[var(--muted)]">
             Automatic workload redistribution triggered by approved leave.
           </p>
         </div>
 
-        <div className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--foreground)]">
+        <span
+          className="shrink-0 rounded-full px-3 py-1 text-[11.5px] font-semibold tabular-nums"
+          style={{
+            background: "var(--accent-3-soft)",
+            color: "var(--accent-3)",
+          }}
+        >
           {data.tasks_reassigned} reassigned
-        </div>
+        </span>
       </div>
 
       {data.error && (
-        <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-600">
+        <div
+          className="mt-4 rounded-xl border p-3 text-[13px]"
+          style={{
+            borderColor: "var(--danger)",
+            background: "var(--danger-soft)",
+            color: "var(--danger)",
+          }}
+        >
           {data.error}
         </div>
       )}
 
       {data.assignments && data.assignments.length > 0 && (
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-2.5">
           {data.assignments.map((assignment) => (
             <div
               key={assignment.task_id}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+              className="
+                flex items-center gap-3 rounded-xl border p-3.5
+                border-[var(--border)]
+                bg-[var(--surface)]/40 backdrop-blur-xl
+              "
             >
-              <div className="font-medium text-[var(--foreground)]">
-                {assignment.task_title}
-              </div>
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--accent-4), var(--accent-3))",
+                }}
+              >
+                <UserPlus size={14} />
+              </span>
 
-              <div className="mt-2 text-sm text-[var(--muted)]">
-                Reassigned to{" "}
-                <span className="font-medium text-[var(--foreground)]">
-                  {assignment.new_employee_name}
-                </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] font-medium">
+                  {assignment.task_title}
+                </p>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--muted)]">
+                  <span>Reassigned to</span>
+                  <ArrowRight size={11} />
+                  <span className="font-medium text-[var(--foreground)]">
+                    {assignment.new_employee_name}
+                  </span>
+                </div>
               </div>
             </div>
           ))}
@@ -86,18 +117,36 @@ export default function TaskReassignment({
       )}
 
       {data.unassigned && data.unassigned.length > 0 && (
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-2.5">
           {data.unassigned.map((task) => (
             <div
               key={task.task_id}
-              className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4"
+              className="
+                flex items-center gap-3 rounded-xl border p-3.5
+              "
+              style={{
+                borderColor: "var(--warning)",
+                background: "var(--warning-soft)",
+              }}
             >
-              <div className="font-medium text-[var(--foreground)]">
-                {task.task_title}
-              </div>
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                style={{
+                  background: "var(--warning-soft)",
+                  color: "var(--warning)",
+                  boxShadow: "inset 0 0 0 1px var(--warning)",
+                }}
+              >
+                <UserX size={14} />
+              </span>
 
-              <div className="mt-1 text-sm text-[var(--muted)]">
-                {task.reason}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] font-medium">
+                  {task.task_title}
+                </p>
+                <p className="mt-0.5 text-[12px] text-[var(--muted)]">
+                  {task.reason}
+                </p>
               </div>
             </div>
           ))}

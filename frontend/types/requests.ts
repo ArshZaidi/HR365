@@ -18,3 +18,21 @@ export interface HRRequest {
 export interface HRRequestsResponse {
   requests: HRRequest[];
 }
+
+export interface TicketComment {
+  id: string;
+  request_id: string;
+  author_id: string;
+  author_name?: string | null;
+  author_role: "hr" | "employee" | string;
+  body: string;
+  created_at: string;
+}
+
+export interface TicketCommentsResponse {
+  comments: TicketComment[];
+}
+
+export interface TicketCommentResponse {
+  comment: TicketComment;
+}

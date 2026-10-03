@@ -13,50 +13,79 @@ from typing import Any
 from app import config
 from app.data.chunker import chunk_documents
 from app.data.cleaner import clean_document
-from app.data.loader import SUPPORTED_EXTS, load_documents
+from app.data.loader import (
+    SUPPORTED_EXTS,
+    load_documents,
+)
 from app.engines.answer_engine import AnswerEngine
-from app.engines.confidence_engine import ConfidenceEngine
+from app.engines.confidence_engine import (
+    ConfidenceEngine,
+)
 from app.rag.embeddings import EmbeddingModel
 from app.rag.reranker import LexicalReranker
 from app.rag.retriever import Retriever
 from app.rag.vectorstore import VectorStore
 
+
 logger = logging.getLogger(__name__)
 
 
-def _compute_corpus_signature(raw_dir: Path) -> str:
+def _compute_corpus_signature(
+    raw_dir: Path,
+) -> str:
     """
     Create a signature representing the current raw-document corpus.
-
-    The signature includes:
-    - relative file path
-    - file size
-    - modification timestamp
-
-    This allows the pipeline to automatically rebuild the FAISS index
-    whenever the source corpus changes.
     """
+
     hasher = hashlib.sha256()
 
     if not raw_dir.exists():
         return hasher.hexdigest()
 
-    for path in sorted(raw_dir.rglob("*")):
+    for path in sorted(
+        raw_dir.rglob("*")
+    ):
         if not path.is_file():
             continue
 
-        if path.suffix.lower() not in SUPPORTED_EXTS:
+        if (
+            path.suffix.lower()
+            not in SUPPORTED_EXTS
+        ):
             continue
 
         try:
             stat = path.stat()
-            relative_path = path.relative_to(raw_dir).as_posix()
-        except (OSError, ValueError):
+
+            relative_path = (
+                path.relative_to(
+                    raw_dir
+                ).as_posix()
+            )
+
+        except (
+            OSError,
+            ValueError,
+        ):
             continue
 
-        hasher.update(relative_path.encode("utf-8"))
-        hasher.update(str(stat.st_size).encode("utf-8"))
-        hasher.update(str(stat.st_mtime_ns).encode("utf-8"))
+        hasher.update(
+            relative_path.encode(
+                "utf-8"
+            )
+        )
+
+        hasher.update(
+            str(
+                stat.st_size
+            ).encode("utf-8")
+        )
+
+        hasher.update(
+            str(
+                stat.st_mtime_ns
+            ).encode("utf-8")
+        )
 
     return hasher.hexdigest()
 
@@ -83,11 +112,15 @@ class RAGPipeline:
             ↓
         reranker
             ↓
+        confidence
+            ↓
         answer engine
     """
 
     def __init__(self) -> None:
-        self.embedder = EmbeddingModel(config.EMBEDDING_MODEL)
+        self.embedder = EmbeddingModel(
+            config.EMBEDDING_MODEL
+        )
 
         self.store = VectorStore(
             dim=self.embedder.dim,
@@ -102,41 +135,75 @@ class RAGPipeline:
         self.reranker = LexicalReranker()
 
         self.answer_engine = AnswerEngine()
-        self.confidence_engine = ConfidenceEngine()
-        self.manifest_path = config.INDEX_DIR / "manifest.json"
+
+        self.confidence_engine = (
+            ConfidenceEngine()
+        )
+
+        self.manifest_path = (
+            config.INDEX_DIR
+            / "manifest.json"
+        )
 
         self._ready = False
 
+    # ------------------------------------------------------------------
+    # Initialisation
+    # ------------------------------------------------------------------
+
     def initialize(self) -> None:
         """
-        Load an existing compatible index or rebuild it automatically.
+        Load an existing compatible index or rebuild automatically.
         """
+
         config.ensure_dirs()
 
-        signature = _compute_corpus_signature(config.RAW_DIR)
+        signature = (
+            _compute_corpus_signature(
+                config.RAW_DIR
+            )
+        )
 
-        manifest = self._load_manifest()
+        manifest = (
+            self._load_manifest()
+        )
 
         index_exists = (
-            (config.INDEX_DIR / "faiss.index").exists()
-            and (config.INDEX_DIR / "chunks.json").exists()
+            (
+                config.INDEX_DIR
+                / "faiss.index"
+            ).exists()
+            and (
+                config.INDEX_DIR
+                / "chunks.json"
+            ).exists()
         )
 
         reusable_index = (
             index_exists
-            and manifest.get("signature") == signature
-            and manifest.get("embedding_model")
+            and manifest.get(
+                "signature"
+            )
+            == signature
+            and manifest.get(
+                "embedding_model"
+            )
             == config.EMBEDDING_MODEL
-            and manifest.get("chunk_size")
+            and manifest.get(
+                "chunk_size"
+            )
             == config.CHUNK_SIZE
-            and manifest.get("chunk_overlap")
+            and manifest.get(
+                "chunk_overlap"
+            )
             == config.CHUNK_OVERLAP
         )
 
         if reusable_index:
             logger.info(
-                "Existing compatible FAISS index found. "
-                "Loading index from %s",
+                "Existing compatible FAISS "
+                "index found. Loading index "
+                "from %s",
                 config.INDEX_DIR,
             )
 
@@ -144,10 +211,12 @@ class RAGPipeline:
                 self._ready = True
 
                 logger.info(
-                    "RAG ready. vectors=%d, llm_available=%s",
+                    "RAG ready. vectors=%d, "
+                    "llm_available=%s",
                     self.store.size,
                     self.answer_engine.llm_available,
                 )
+
                 return
 
             logger.warning(
@@ -157,8 +226,8 @@ class RAGPipeline:
 
         else:
             logger.info(
-                "Corpus/config changed or index missing. "
-                "Rebuilding FAISS index."
+                "Corpus/config changed or index "
+                "missing. Rebuilding FAISS index."
             )
 
         success = self.build_index()
@@ -168,22 +237,22 @@ class RAGPipeline:
                 "Failed to build the HR365 RAG index."
             )
 
-        self._write_manifest(signature)
+        self._write_manifest(
+            signature
+        )
 
         self._ready = True
 
         logger.info(
-            "RAG ready. vectors=%d, llm_available=%s",
+            "RAG ready. vectors=%d, "
+            "llm_available=%s",
             self.store.size,
             self.answer_engine.llm_available,
         )
 
-    def _load_manifest(self) -> dict[str, Any]:
-        """
-        Safely load the index manifest.
-
-        Returns an empty dictionary if the manifest is missing or invalid.
-        """
+    def _load_manifest(
+        self,
+    ) -> dict[str, Any]:
         if not self.manifest_path.exists():
             return {}
 
@@ -194,10 +263,16 @@ class RAGPipeline:
                 )
             )
 
-            if isinstance(data, dict):
+            if isinstance(
+                data,
+                dict,
+            ):
                 return data
 
-        except (OSError, json.JSONDecodeError) as exc:
+        except (
+            OSError,
+            json.JSONDecodeError,
+        ) as exc:
             logger.warning(
                 "Could not read index manifest: %s",
                 exc,
@@ -205,16 +280,22 @@ class RAGPipeline:
 
         return {}
 
-    def _write_manifest(self, signature: str) -> None:
-        """
-        Save metadata describing the current FAISS index.
-        """
+    def _write_manifest(
+        self,
+        signature: str,
+    ) -> None:
         try:
             manifest = {
                 "signature": signature,
-                "embedding_model": config.EMBEDDING_MODEL,
-                "chunk_size": config.CHUNK_SIZE,
-                "chunk_overlap": config.CHUNK_OVERLAP,
+                "embedding_model": (
+                    config.EMBEDDING_MODEL
+                ),
+                "chunk_size": (
+                    config.CHUNK_SIZE
+                ),
+                "chunk_overlap": (
+                    config.CHUNK_OVERLAP
+                ),
                 "vectors": self.store.size,
             }
 
@@ -232,22 +313,24 @@ class RAGPipeline:
                 exc,
             )
 
+    # ------------------------------------------------------------------
+    # Index construction
+    # ------------------------------------------------------------------
+
     def build_index(self) -> bool:
         """
-        Build the FAISS index from the current document corpus.
-
-        Returns:
-            True  -> index successfully built
-            False -> index construction failed
+        Build FAISS from the current document corpus.
         """
+
         self.store.clear()
 
-        documents = load_documents(config.RAW_DIR)
+        documents = load_documents(
+            config.RAW_DIR
+        )
 
         if not documents:
             logger.warning(
-                "No supported documents found under %s. "
-                "Starting with an empty knowledge base.",
+                "No supported documents found under %s.",
                 config.RAW_DIR,
             )
             return True
@@ -255,7 +338,11 @@ class RAGPipeline:
         cleaned_documents = []
 
         for document in documents:
-            cleaned_document = clean_document(document)
+            cleaned_document = (
+                clean_document(
+                    document
+                )
+            )
 
             if cleaned_document.text:
                 cleaned_documents.append(
@@ -264,7 +351,8 @@ class RAGPipeline:
 
         if not cleaned_documents:
             logger.warning(
-                "All documents were empty after cleaning."
+                "All documents were empty "
+                "after cleaning."
             )
             return True
 
@@ -280,10 +368,17 @@ class RAGPipeline:
             )
             return True
 
-        texts = [chunk.text for chunk in chunks]
+        texts = [
+            chunk.text
+            for chunk in chunks
+        ]
 
         try:
-            embeddings = self.embedder.embed_documents(texts)
+            embeddings = (
+                self.embedder.embed_documents(
+                    texts
+                )
+            )
 
         except Exception as exc:
             logger.exception(
@@ -293,7 +388,9 @@ class RAGPipeline:
             return False
 
         try:
-            if len(embeddings) != len(chunks):
+            if len(embeddings) != len(
+                chunks
+            ):
                 logger.error(
                     "Embedding/chunk count mismatch: "
                     "%d embeddings for %d chunks.",
@@ -324,14 +421,36 @@ class RAGPipeline:
 
         return True
 
+    # ------------------------------------------------------------------
+    # Query execution
+    # ------------------------------------------------------------------
+
     def run(
         self,
         question: str,
         additional_context: str | None = None,
+        use_rag: bool = True,
     ) -> dict[str, Any]:
         """
-        Execute one RAG query.
+        Execute an HR365 answer request.
+
+        Args:
+            question:
+                User's question.
+
+            additional_context:
+                Authenticated employee data.
+
+            use_rag:
+                Whether company-policy retrieval should run.
+
+                False:
+                    Employee-data-only answer.
+
+                True:
+                    Policy or hybrid answer.
         """
+
         question = question.strip()
 
         if not question:
@@ -344,6 +463,47 @@ class RAGPipeline:
                 "RAG pipeline is not initialized."
             )
 
+        # --------------------------------------------------------------
+        # Personal-only route
+        #
+        # No FAISS.
+        # No retrieval.
+        # No reranking.
+        # No RAG confidence.
+        # --------------------------------------------------------------
+
+        if not use_rag:
+            answer, sources = (
+                self.answer_engine.generate(
+                    question=question,
+                    results=[],
+                    additional_context=(
+                        additional_context
+                    ),
+                )
+            )
+
+            return {
+                "answer": answer,
+                "sources": sources,
+                "retrieved": 0,
+                "reranked": 0,
+                "confidence": {
+                    "score": 1.0,
+                    "level": "high",
+                    "top_similarity": 0.0,
+                    "mean_similarity": 0.0,
+                    "evidence_score": 1.0,
+                    "relevant_chunk_count": 0,
+                },
+                "escalation_required": False,
+                "escalation_reason": None,
+            }
+
+        # --------------------------------------------------------------
+        # Policy / hybrid route
+        # --------------------------------------------------------------
+
         retrieved = self.retriever.retrieve(
             question,
             k=config.RETRIEVAL_K,
@@ -355,22 +515,34 @@ class RAGPipeline:
             top_n=config.RERANK_K,
         )
 
-        confidence = self.confidence_engine.calculate(
-            [score for _, score in reranked]
+        confidence = (
+            self.confidence_engine.calculate(
+                [
+                    score
+                    for _, score in reranked
+                ]
+            )
         )
 
-        escalation_required = confidence.level == "low"
+        escalation_required = (
+            confidence.level == "low"
+        )
 
         escalation_reason = (
-            "RAG confidence is low. Human HR review is recommended."
+            "RAG confidence is low. "
+            "Human HR review is recommended."
             if escalation_required
             else None
         )
 
-        answer, sources = self.answer_engine.generate(
-            question,
-            reranked,
-            additional_context=additional_context,
+        answer, sources = (
+            self.answer_engine.generate(
+                question=question,
+                results=reranked,
+                additional_context=(
+                    additional_context
+                ),
+            )
         )
 
         return {
@@ -381,11 +553,23 @@ class RAGPipeline:
             "confidence": {
                 "score": confidence.score,
                 "level": confidence.level,
-                "top_similarity": confidence.top_similarity,
-                "mean_similarity": confidence.mean_similarity,
-                "evidence_score": confidence.evidence_score,
-                "relevant_chunk_count": confidence.relevant_chunk_count,
+                "top_similarity": (
+                    confidence.top_similarity
+                ),
+                "mean_similarity": (
+                    confidence.mean_similarity
+                ),
+                "evidence_score": (
+                    confidence.evidence_score
+                ),
+                "relevant_chunk_count": (
+                    confidence.relevant_chunk_count
+                ),
             },
-            "escalation_required": escalation_required,
-            "escalation_reason": escalation_reason,
+            "escalation_required": (
+                escalation_required
+            ),
+            "escalation_reason": (
+                escalation_reason
+            ),
         }

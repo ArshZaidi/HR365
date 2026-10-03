@@ -1,41 +1,148 @@
 @import "tailwindcss";
 
+/* ============================================================
+   HR365 — TOKENS
+   ============================================================ */
+
 :root {
-  --background: #f7f6f2;
-  --foreground: #1f1f1c;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), "Tiempos Headline", Georgia, serif;
 
+  /* Canvas */
+  --background: #f6f4ef;
+  --background-subtle: #efece5;
+  --foreground: #171614;
+  --foreground-soft: #3d3b36;
+
+  /* Surfaces (used mostly for glass tinting) */
   --surface: #ffffff;
-  --surface-hover: #f0efeb;
+  --surface-hover: #f1efea;
 
-  --border: #e4e2dc;
-  --muted: #77766f;
+  /* Lines */
+  --border: rgba(23, 22, 20, 0.1);
+  --border-strong: rgba(23, 22, 20, 0.18);
 
-  --accent: #5b5bd6;
+  /* Text */
+  --muted: #78766e;
 
-  --sidebar: #191918;
-  --sidebar-foreground: #f5f5f0;
-  --sidebar-muted: #96958d;
-  --sidebar-active: #2a2a28;
-  --sidebar-hover: #242422;
+  /* Brand */
+  --accent: #d2694a;
+  --accent-soft: rgba(210, 105, 74, 0.12);
+  --accent-foreground: #ffffff;
+
+  /* ── Multicolor system ────────────────────────── */
+  --accent-1: #d2694a; /* terracotta */
+  --accent-2: #7c6cf0; /* violet     */
+  --accent-3: #3ba8e0; /* sky        */
+  --accent-4: #2f9e6b; /* emerald    */
+  --accent-5: #e0a93b; /* amber      */
+  --accent-6: #d94e8c; /* pink       */
+
+  --accent-1-soft: rgba(210, 105, 74, 0.14);
+  --accent-2-soft: rgba(124, 108, 240, 0.14);
+  --accent-3-soft: rgba(59, 168, 224, 0.14);
+  --accent-4-soft: rgba(47, 158, 107, 0.14);
+  --accent-5-soft: rgba(224, 169, 59, 0.16);
+  --accent-6-soft: rgba(217, 78, 140, 0.14);
+
+  /* ── Semantic ─────────────────────────────────── */
+  --success: #2f9e6b;
+  --success-soft: rgba(47, 158, 107, 0.14);
+  --warning: #c07f14;
+  --warning-soft: rgba(192, 127, 20, 0.15);
+  --info: #3b7dd8;
+  --info-soft: rgba(59, 125, 216, 0.14);
+  --danger: #d64545;
+  --danger-soft: rgba(214, 69, 69, 0.14);
+
+  /* ── Glass ────────────────────────────────────── */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-hi: rgba(255, 255, 255, 0.9);
+  --glass-ring: rgba(23, 22, 20, 0.06);
+
+  /* ── Sidebar (frosted) ────────────────────────── */
+  --sidebar: #171614;
+  --sidebar-foreground: #f7f6f1;
+  --sidebar-muted: #9c9a91;
+  --sidebar-active: rgba(255, 255, 255, 0.09);
+  --sidebar-hover: rgba(255, 255, 255, 0.055);
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgba(23, 22, 20, 0.04);
+  --shadow-sm: 0 1px 3px rgba(23, 22, 20, 0.05),
+    0 1px 2px rgba(23, 22, 20, 0.03);
+  --shadow-md: 0 12px 32px -12px rgba(23, 22, 20, 0.18),
+    0 3px 10px -4px rgba(23, 22, 20, 0.08);
+  --shadow-lg: 0 32px 72px -28px rgba(23, 22, 20, 0.3),
+    0 12px 28px -16px rgba(23, 22, 20, 0.14);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark {
-  --background: #191918;
-  --foreground: #eeeee9;
+  --background: #0e0e0d;
+  --background-subtle: #131312;
+  --foreground: #f4f3ee;
+  --foreground-soft: #d3d2cb;
 
-  --surface: #222220;
-  --surface-hover: #2a2a27;
+  --surface: #1a1a18;
+  --surface-hover: #232320;
 
-  --border: #343431;
-  --muted: #a1a19a;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
 
-  --accent: #8b8be8;
+  --muted: #9b998f;
 
-  --sidebar: #111110;
-  --sidebar-foreground: #f5f5f0;
-  --sidebar-muted: #85857e;
-  --sidebar-active: #282825;
-  --sidebar-hover: #22221f;
+  --accent: #e08560;
+  --accent-soft: rgba(224, 133, 96, 0.15);
+  --accent-foreground: #1a1a18;
+
+  --accent-1: #e08560;
+  --accent-2: #9b8bff;
+  --accent-3: #5cbcec;
+  --accent-4: #4fbb8a;
+  --accent-5: #e8b955;
+  --accent-6: #e870a4;
+
+  --accent-1-soft: rgba(224, 133, 96, 0.16);
+  --accent-2-soft: rgba(155, 139, 255, 0.16);
+  --accent-3-soft: rgba(92, 188, 236, 0.16);
+  --accent-4-soft: rgba(79, 187, 138, 0.16);
+  --accent-5-soft: rgba(232, 185, 85, 0.16);
+  --accent-6-soft: rgba(232, 112, 164, 0.16);
+
+  --success: #4fbb8a;
+  --success-soft: rgba(79, 187, 138, 0.16);
+  --warning: #dfa63f;
+  --warning-soft: rgba(223, 166, 63, 0.16);
+  --info: #6ba3ea;
+  --info-soft: rgba(107, 163, 234, 0.16);
+  --danger: #e56b6b;
+  --danger-soft: rgba(229, 107, 107, 0.16);
+
+  --glass-bg: rgba(26, 26, 24, 0.5);
+  --glass-bg-strong: rgba(26, 26, 24, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-hi: rgba(255, 255, 255, 0.14);
+  --glass-ring: rgba(0, 0, 0, 0.4);
+
+  --sidebar: #0a0a09;
+  --sidebar-foreground: #f7f6f1;
+  --sidebar-muted: #86847c;
+  --sidebar-active: rgba(255, 255, 255, 0.09);
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 14px 40px -14px rgba(0, 0, 0, 0.65),
+    0 4px 12px -4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 36px 80px -30px rgba(0, 0, 0, 0.8),
+    0 14px 32px -18px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -44,6 +151,7 @@
 
 html {
   scroll-behavior: auto;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -51,31 +159,34 @@ body {
   background: var(--background);
   color: var(--foreground);
 
-  font-family:
-    Inter,
-    ui-sans-serif,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-inter), Inter, ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
+  font-size: 17px;
   font-weight: 400;
-  letter-spacing: -0.008em;
+  line-height: 1.6;
+  letter-spacing: -0.011em;
 
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 
-  transition:
-    background-color 300ms ease,
-    color 300ms ease;
+  transition: background-color 300ms var(--ease-out-soft),
+    color 300ms var(--ease-out-soft);
 }
+
+/* ── Claude-style display typography ─────────────── */
 
 h1,
 h2,
 h3,
-h4 {
+h4,
+.font-display {
+  font-family: var(--font-fraunces), "Tiempos Headline", Georgia, serif;
   font-weight: 500;
-  letter-spacing: -0.035em;
+  font-variation-settings: "SOFT" 30, "WONK" 0, "opsz" 100;
+  line-height: 1.1;
+  letter-spacing: -0.028em;
 }
 
 button,
@@ -83,21 +194,31 @@ input,
 textarea,
 select {
   font: inherit;
+  letter-spacing: inherit;
 }
 
 button {
   cursor: pointer;
 }
 
-::selection {
-  background: var(--foreground);
-  color: var(--background);
+a {
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Premium scrollbar */
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
 
 ::-webkit-scrollbar {
-  width: 7px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -105,30 +226,22 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--border-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
+  background-clip: content-box;
 }
 
-:root {
-  --background: #f7f6f2;
-  --foreground: #171717;
-  --surface: #ffffff;
-  --surface-hover: #f0efeb;
-  --border: rgba(23, 23, 23, 0.1);
-  --muted: #737373;
-  --accent: #d97757;
-}
-
-.dark {
-  --background: #111110;
-  --foreground: #f4f3ef;
-  --surface: #191918;
-  --surface-hover: #242422;
-  --border: rgba(255, 255, 255, 0.1);
-  --muted: #a5a5a0;
-  --accent: #e38a68;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

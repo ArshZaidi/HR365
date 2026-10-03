@@ -1,7 +1,26 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+
+import { Send } from "lucide-react";
+
 import { apiFetch } from "@/lib/api";
+import { GlassPanel } from "@/components/ui/premium";
+
+const inputBase = [
+  "w-full rounded-xl px-4 py-3 text-[14px]",
+  "border border-[var(--border)]",
+  "bg-[var(--surface)]/60 backdrop-blur-xl",
+  "text-[var(--foreground)]",
+  "outline-none",
+  "transition-all duration-200 ease-[var(--ease-out-soft)]",
+  "placeholder:text-[var(--muted)]",
+  "focus:border-[var(--border-strong)]",
+  "focus:bg-[var(--surface)]/80",
+].join(" ");
+
+const labelBase =
+  "mb-2 block text-[12px] font-semibold tracking-[0.08em] text-[var(--muted)] uppercase";
 
 export default function RequestForm({
   onCreated,
@@ -43,9 +62,7 @@ export default function RequestForm({
       onCreated();
     } catch (err) {
       setMessage(
-        err instanceof Error
-          ? err.message
-          : "Unable to create request."
+        err instanceof Error ? err.message : "Unable to create request.",
       );
     } finally {
       setLoading(false);
@@ -53,95 +70,95 @@ export default function RequestForm({
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
-      <p className="text-sm font-medium">
-        New HR request
-      </p>
+    <GlassPanel tone={5} padded={false} className="self-start">
+      <div className="border-b border-[var(--border)] px-5 py-4 sm:px-6">
+        <div className="flex items-center gap-3">
+          <span
+            className="h-6 w-1 shrink-0 rounded-full"
+            style={{ background: "var(--accent-5)" }}
+          />
+          <div>
+            <p className="font-display text-[17px] font-medium tracking-[-0.015em]">
+              New HR request
+            </p>
+            <p className="mt-0.5 text-[12.5px] text-[var(--muted)]">
+              Ask HR for help with a specific issue.
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <p className="mt-1 text-xs text-[var(--muted)]">
-        Ask HR for help with a specific issue.
-      </p>
-
-      <form
-        onSubmit={submit}
-        className="mt-6 space-y-5"
-      >
+      <form onSubmit={submit} className="space-y-5 p-5 sm:p-6">
         <div>
-          <label className="mb-2 block text-xs font-medium">
-            Subject
-          </label>
+          <label className={labelBase}>Subject</label>
 
           <input
             required
             value={subject}
-            onChange={(event) =>
-              setSubject(event.target.value)
-            }
+            onChange={(event) => setSubject(event.target.value)}
             placeholder="What do you need help with?"
-            className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
+            className={inputBase}
           />
         </div>
 
-        <div>
-          <label className="mb-2 block text-xs font-medium">
-            Category
-          </label>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelBase}>Category</label>
 
-          <select
-            value={category}
-            onChange={(event) =>
-              setCategory(event.target.value)
-            }
-            className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
-          >
-            <option value="general">General</option>
-            <option value="payroll">Payroll</option>
-            <option value="leave">Leave</option>
-            <option value="attendance">Attendance</option>
-            <option value="IT">IT</option>
-            <option value="policy">Policy</option>
-            <option value="other">Other</option>
-          </select>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className={inputBase}
+            >
+              <option value="general">General</option>
+              <option value="payroll">Payroll</option>
+              <option value="leave">Leave</option>
+              <option value="attendance">Attendance</option>
+              <option value="IT">IT</option>
+              <option value="policy">Policy</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label className={labelBase}>Priority</label>
+
+            <select
+              value={priority}
+              onChange={(event) => setPriority(event.target.value)}
+              className={inputBase}
+            >
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-medium">
-            Priority
-          </label>
-
-          <select
-            value={priority}
-            onChange={(event) =>
-              setPriority(event.target.value)
-            }
-            className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
-          >
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium">
-            Description
-          </label>
+          <label className={labelBase}>Description</label>
 
           <textarea
             required
             rows={5}
             value={description}
-            onChange={(event) =>
-              setDescription(event.target.value)
-            }
-            placeholder="Describe your request..."
-            className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Describe your request…"
+            className={`${inputBase} resize-none`}
           />
         </div>
 
         {message && (
-          <p className="rounded-xl bg-[var(--surface-hover)] px-4 py-3 text-xs text-[var(--muted)]">
+          <p
+            className="
+              rounded-xl px-4 py-3 text-[12.5px] font-medium
+            "
+            style={{
+              background: "var(--accent-5-soft)",
+              color: "var(--accent-5)",
+            }}
+          >
             {message}
           </p>
         )}
@@ -149,11 +166,24 @@ export default function RequestForm({
         <button
           type="submit"
           disabled={loading}
-          className="rounded-full bg-[var(--foreground)] px-5 py-3 text-sm font-medium text-[var(--background)] transition hover:opacity-85 disabled:opacity-50"
+          className="
+            inline-flex h-11 w-full items-center justify-center gap-2
+            rounded-xl px-5 text-[14px] font-medium text-white
+            transition-all duration-300 ease-[var(--ease-out-soft)]
+            hover:-translate-y-0.5
+            disabled:cursor-not-allowed disabled:opacity-50
+          "
+          style={{
+            background:
+              "linear-gradient(135deg, var(--accent-5), var(--accent-1))",
+            boxShadow:
+              "0 12px 28px -10px rgba(224,169,59,0.5), inset 0 1px 0 rgba(255,255,255,0.25)",
+          }}
         >
-          {loading ? "Submitting..." : "Submit request"}
+          <Send size={15} />
+          {loading ? "Submitting…" : "Submit request"}
         </button>
       </form>
-    </div>
+    </GlassPanel>
   );
 }

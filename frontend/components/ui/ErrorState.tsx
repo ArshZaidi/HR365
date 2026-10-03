@@ -1,5 +1,7 @@
 "use client";
 
+import { AlertTriangle, RefreshCw } from "lucide-react";
+
 interface ErrorStateProps {
   title?: string;
   message: string;
@@ -12,27 +14,41 @@ export default function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-600">
-          <svg
-            className="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
+    <div
+      className="
+        relative overflow-hidden rounded-2xl
+        border border-[var(--glass-border)]
+        bg-[var(--glass-bg)] backdrop-blur-2xl
+        shadow-[0_1px_0_var(--glass-hi)_inset,var(--shadow-sm)]
+        p-6
+      "
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-16 -right-12 h-40 w-40 rounded-full opacity-[0.16] blur-[60px]"
+        style={{ background: "var(--danger)" }}
+      />
+
+      <div className="relative flex items-start gap-3.5">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+          style={{
+            background: "var(--danger-soft)",
+            color: "var(--danger)",
+          }}
+        >
+          <AlertTriangle size={17} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-[15px] font-medium tracking-[-0.005em]"
+            style={{ color: "var(--danger)" }}
           >
-            <path d="M12 9v4M12 17h.01" />
-            <path d="M10.3 4.8 2.8 18a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3l-7.5-13.2a2 2 0 0 0-3.4 0Z" />
-          </svg>
-        </div>
-
-        <div className="min-w-0">
-          <div className="text-sm font-medium text-red-700">
             {title}
-          </div>
+          </p>
 
-          <p className="mt-1 text-sm leading-6 text-red-600/80">
+          <p className="mt-1.5 text-[13.5px] leading-6 text-[var(--muted)]">
             {message}
           </p>
 
@@ -40,8 +56,18 @@ export default function ErrorState({
             <button
               type="button"
               onClick={onRetry}
-              className="mt-4 rounded-xl border border-red-500/20 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-500/5"
+              className="
+                mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg
+                border px-3 text-[12.5px] font-medium
+                transition-all duration-300 ease-[var(--ease-out-soft)]
+                hover:-translate-y-0.5
+              "
+              style={{
+                borderColor: "var(--danger)",
+                color: "var(--danger)",
+              }}
             >
+              <RefreshCw size={13} />
               Try again
             </button>
           )}
