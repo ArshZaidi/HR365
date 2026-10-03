@@ -169,6 +169,10 @@ app.include_router(
     feedback_router
 )
 
+app.include_router(
+    notices_router
+)
+
 
 # ---------------------------------------------------------------------------
 # CORS
