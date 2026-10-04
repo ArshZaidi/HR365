@@ -34,7 +34,12 @@ def _compute_corpus_signature(
     raw_dir: Path,
 ) -> str:
     """
-    Create a signature representing the current raw-document corpus.
+    Create a stable signature representing the current raw-document
+    corpus.
+
+    The signature is based on file paths and file contents rather than
+    filesystem modification times, so a persisted index remains valid
+    after deployment to another machine/container.
     """
 
     hasher = hashlib.sha256()
@@ -42,50 +47,31 @@ def _compute_corpus_signature(
     if not raw_dir.exists():
         return hasher.hexdigest()
 
-    for path in sorted(
-        raw_dir.rglob("*")
-    ):
+    for path in sorted(raw_dir.rglob("*")):
         if not path.is_file():
             continue
 
-        if (
-            path.suffix.lower()
-            not in SUPPORTED_EXTS
-        ):
+        if path.suffix.lower() not in SUPPORTED_EXTS:
             continue
 
         try:
-            stat = path.stat()
+            relative_path = path.relative_to(raw_dir).as_posix()
 
-            relative_path = (
-                path.relative_to(
-                    raw_dir
-                ).as_posix()
+            hasher.update(
+                relative_path.encode("utf-8")
             )
 
-        except (
-            OSError,
-            ValueError,
-        ):
+            with path.open("rb") as file:
+                while True:
+                    chunk = file.read(1024 * 1024)
+
+                    if not chunk:
+                        break
+
+                    hasher.update(chunk)
+
+        except (OSError, ValueError):
             continue
-
-        hasher.update(
-            relative_path.encode(
-                "utf-8"
-            )
-        )
-
-        hasher.update(
-            str(
-                stat.st_size
-            ).encode("utf-8")
-        )
-
-        hasher.update(
-            str(
-                stat.st_mtime_ns
-            ).encode("utf-8")
-        )
 
     return hasher.hexdigest()
 

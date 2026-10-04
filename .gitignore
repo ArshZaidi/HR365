@@ -20,6 +20,9 @@ env/
 
 # RAG generated files
 backend/data/index/*
+!backend/data/index/faiss.index
+!backend/data/index/chunks.json
+!backend/data/index/manifest.json
 backend/data/processed/*
 
 # OS

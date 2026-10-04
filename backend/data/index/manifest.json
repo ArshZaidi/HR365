@@ -1,0 +1,7 @@
+{
+  "signature": "c7d38d402ffbdc048022348bded829546738a0d423b5cfbb161e8fe9dd05fdc5",
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "chunk_size": 700,
+  "chunk_overlap": 100,
+  "vectors": 46
+}
