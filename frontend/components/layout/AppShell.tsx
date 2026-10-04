@@ -1,62 +1,121 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-import NoticeToast from "@/components/notices/NoticeToast";
+import OnboardingScreen from "@/components/onboarding/OnboardingScreen";
 import { initSmoothScroll } from "@/lib/smooth-scroll";
-import { useAccent } from "@/hooks/useAccent";
 
-export default function AppShell({ children }: { children: ReactNode }) {
+interface AppShellProps {
+  children: ReactNode;
+}
+
+export default function AppShell({
+  children,
+}: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useAccent();
+  const [showOnboarding, setShowOnboarding] =
+    useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+
     initSmoothScroll();
+
+    const onboardingComplete =
+      window.localStorage.getItem(
+        "hr365_onboarding_complete"
+      );
+
+    if (!onboardingComplete) {
+      setShowOnboarding(true);
+    }
   }, []);
 
-  return (
-    <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
-      >
-        <div className="absolute -top-48 -left-32 h-[560px] w-[560px] rounded-full bg-[var(--accent-1)] opacity-[0.13] blur-[130px]" />
-        <div className="absolute top-1/4 -right-32 h-[640px] w-[640px] rounded-full bg-[var(--accent-2)] opacity-[0.11] blur-[150px]" />
-        <div className="absolute -bottom-40 left-1/4 h-[520px] w-[520px] rounded-full bg-[var(--accent-3)] opacity-[0.10] blur-[140px]" />
-        <div className="absolute top-1/2 left-1/3 h-[380px] w-[380px] rounded-full bg-[var(--accent-5)] opacity-[0.07] blur-[120px]" />
-      </div>
+  /*
+   * Prevent hydration mismatch and avoid rendering
+   * the application before the client has checked
+   * localStorage.
+   */
+  if (!mounted) {
+    return null;
+  }
 
-      <div className="relative z-10 flex min-h-screen">
+  /*
+   * First-time authenticated experience.
+   *
+   * OnboardingScreen handles the Render cold-start
+   * silently in the background. The user never sees
+   * the old "Waking up your workspace" screen.
+   */
+  if (showOnboarding) {
+    return (
+      <OnboardingScreen />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+      <div className="flex min-h-screen">
+        {/* =====================================================
+            DESKTOP SIDEBAR
+            ===================================================== */}
+
         <Sidebar
           collapsed={collapsed}
-          onToggle={() => setCollapsed((v) => !v)}
+          onToggle={() =>
+            setCollapsed((current) => !current)
+          }
         />
 
+        {/* =====================================================
+            MAIN APPLICATION
+            ===================================================== */}
+
         <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar onMenuToggle={() => setMobileOpen(true)} />
-          <main className="min-w-0 flex-1">{children}</main>
+          <Topbar
+            onMenuToggle={() =>
+              setMobileOpen(true)
+            }
+          />
+
+          <main className="min-w-0 flex-1 pt-[68px]">
+            {children}
+          </main>
         </div>
       </div>
+
+      {/* =======================================================
+          MOBILE NAVIGATION
+          ======================================================= */}
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+
           <button
             type="button"
             aria-label="Close navigation"
-            onClick={() => setMobileOpen(false)}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() =>
+              setMobileOpen(false)
+            }
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
           />
-          <div className="relative h-full w-[280px]">
-            <Sidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
+
+          {/* Mobile sidebar */}
+
+          <div className="relative h-full w-[260px]">
+            <Sidebar
+              collapsed={false}
+              onToggle={() =>
+                setMobileOpen(false)
+              }
+            />
           </div>
         </div>
       )}
-
-      <NoticeToast />
     </div>
   );
 }

@@ -245,3 +245,617 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   HR365 CINEMATIC ONBOARDING
+   ============================================================ */
+
+.hr365-onboarding {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(
+      circle at 50% 35%,
+      rgba(210, 105, 74, 0.08),
+      transparent 32%
+    ),
+    var(--background);
+  color: var(--foreground);
+}
+
+/* ------------------------------------------------------------
+   Atmospheric background
+   ------------------------------------------------------------ */
+
+.onboarding-noise {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.5'/%3E%3C/svg%3E");
+}
+
+.onboarding-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.3;
+  background-image:
+    linear-gradient(
+      rgba(23, 22, 20, 0.035) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(23, 22, 20, 0.035) 1px,
+      transparent 1px
+    );
+  background-size: 72px 72px;
+  mask-image: radial-gradient(
+    circle at center,
+    black 0%,
+    transparent 75%
+  );
+}
+
+.onboarding-cursor-glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 999px;
+  left: calc(50% - 260px);
+  top: calc(50% - 260px);
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(210, 105, 74, 0.1),
+    transparent 68%
+  );
+  filter: blur(25px);
+}
+
+/* ------------------------------------------------------------
+   Animated orbs
+   ------------------------------------------------------------ */
+
+.onboarding-orb {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(75px);
+  mix-blend-mode: multiply;
+}
+
+.onboarding-orb-a {
+  width: 520px;
+  height: 520px;
+  left: -180px;
+  top: -160px;
+  background: rgba(210, 105, 74, 0.16);
+}
+
+.onboarding-orb-b {
+  width: 600px;
+  height: 600px;
+  right: -220px;
+  top: 12%;
+  background: rgba(100, 120, 180, 0.1);
+}
+
+.onboarding-orb-c {
+  width: 460px;
+  height: 460px;
+  left: 35%;
+  bottom: -280px;
+  background: rgba(175, 130, 85, 0.1);
+}
+
+/* ------------------------------------------------------------
+   Header
+   ------------------------------------------------------------ */
+
+.onboarding-header {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30px 42px;
+}
+
+.onboarding-logo {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 27px;
+  line-height: 1;
+  letter-spacing: -0.055em;
+  font-weight: 600;
+}
+
+.onboarding-logo span {
+  color: var(--accent);
+}
+
+.onboarding-secure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.onboarding-secure-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #70a878;
+  box-shadow: 0 0 0 5px rgba(112, 168, 120, 0.1);
+  animation: onboarding-pulse 2s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------
+   Main content
+   ------------------------------------------------------------ */
+
+.onboarding-content {
+  position: relative;
+  z-index: 3;
+  width: min(1100px, calc(100% - 48px));
+  margin: auto;
+  padding: 70px 0 80px;
+  text-align: center;
+}
+
+.onboarding-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--muted-foreground);
+}
+
+.onboarding-eyebrow span {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  color: var(--accent);
+}
+
+.onboarding-title-wrap {
+  position: relative;
+  display: inline-block;
+  margin-top: 20px;
+}
+
+.onboarding-title {
+  margin: 0;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(78px, 12vw, 170px);
+  line-height: 0.79;
+  letter-spacing: -0.075em;
+  font-weight: 500;
+}
+
+.onboarding-title em {
+  color: var(--accent);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.onboarding-spark {
+  position: absolute;
+  right: -50px;
+  top: 6px;
+  font-size: 40px;
+  color: var(--accent);
+  filter: drop-shadow(
+    0 0 18px rgba(210, 105, 74, 0.25)
+  );
+}
+
+.onboarding-description {
+  margin: 42px auto 0;
+  max-width: 630px;
+  font-size: clamp(17px, 2vw, 21px);
+  line-height: 1.6;
+  letter-spacing: -0.015em;
+  color: var(--muted-foreground);
+}
+
+/* ------------------------------------------------------------
+   Feature row
+   ------------------------------------------------------------ */
+
+.onboarding-features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  max-width: 850px;
+  margin: 58px auto 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.onboarding-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 18px 20px;
+  transition: background 300ms ease;
+}
+
+.onboarding-feature + .onboarding-feature {
+  border-left: 1px solid var(--border);
+}
+
+.onboarding-feature:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.onboarding-feature-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.onboarding-feature strong,
+.onboarding-feature span {
+  display: block;
+}
+
+.onboarding-feature strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.onboarding-feature span {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
+/* ------------------------------------------------------------
+   CTA
+   ------------------------------------------------------------ */
+
+.onboarding-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 42px;
+}
+
+.onboarding-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  min-width: 210px;
+  height: 58px;
+  padding: 0 11px 0 25px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  overflow: hidden;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow:
+    0 15px 45px rgba(0, 0, 0, 0.13),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  transition:
+    box-shadow 300ms ease,
+    transform 300ms ease;
+}
+
+.onboarding-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 75%
+  );
+  transform: translateX(-120%);
+  animation: onboarding-shimmer 4s ease-in-out infinite;
+}
+
+.onboarding-button:hover {
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.onboarding-button > * {
+  position: relative;
+  z-index: 1;
+}
+
+.onboarding-spinner {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: currentColor;
+  border-radius: 999px;
+}
+
+/* ------------------------------------------------------------
+   Status
+   ------------------------------------------------------------ */
+
+.onboarding-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.onboarding-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: onboarding-pulse 1.4s ease-in-out infinite;
+}
+
+.onboarding-footnote {
+  margin-top: 24px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+
+.onboarding-footnote span {
+  margin: 0 6px;
+  opacity: 0.4;
+}
+
+/* ------------------------------------------------------------
+   Floating glass cards
+   ------------------------------------------------------------ */
+
+.floating-card {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 190px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.46);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.06);
+}
+
+.floating-card-left {
+  left: 7%;
+  top: 44%;
+  animation: floating-card-one 7s ease-in-out infinite;
+}
+
+.floating-card-right {
+  right: 7%;
+  top: 29%;
+  animation: floating-card-two 8s ease-in-out infinite;
+}
+
+.floating-card-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(210, 105, 74, 0.09);
+  color: var(--accent);
+}
+
+.floating-card p {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.floating-card span {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  color: var(--muted-foreground);
+}
+
+.floating-pulse {
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: #70a878;
+  box-shadow: 0 0 0 5px rgba(112, 168, 120, 0.1);
+}
+
+/* ------------------------------------------------------------
+   Bottom line
+   ------------------------------------------------------------ */
+
+.onboarding-bottom-line {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  width: min(500px, 45%);
+  height: 1px;
+  transform-origin: center;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border),
+    transparent
+  );
+}
+
+/* ------------------------------------------------------------
+   Animations
+   ------------------------------------------------------------ */
+
+@keyframes onboarding-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes onboarding-shimmer {
+  0%,
+  45% {
+    transform: translateX(-120%);
+  }
+
+  70%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes floating-card-one {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+
+  50% {
+    transform: translateY(-14px) rotate(-2deg);
+  }
+}
+
+@keyframes floating-card-two {
+  0%,
+  100% {
+    transform: translateY(0) rotate(4deg);
+  }
+
+  50% {
+    transform: translateY(13px) rotate(6deg);
+  }
+}
+
+/* ------------------------------------------------------------
+   Mobile
+   ------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+  .floating-card {
+    display: none;
+  }
+
+  .onboarding-features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .onboarding-feature:nth-child(3) {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .onboarding-feature:nth-child(4) {
+    border-top: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 640px) {
+  .onboarding-header {
+    padding: 24px;
+  }
+
+  .onboarding-secure {
+    display: none;
+  }
+
+  .onboarding-content {
+    width: calc(100% - 36px);
+    padding: 50px 0 70px;
+  }
+
+  .onboarding-title {
+    font-size: clamp(70px, 22vw, 110px);
+  }
+
+  .onboarding-spark {
+    right: -25px;
+    top: 0;
+    font-size: 25px;
+  }
+
+  .onboarding-description {
+    margin-top: 30px;
+    font-size: 16px;
+  }
+
+  .desktop-break {
+    display: none;
+  }
+
+  .onboarding-features {
+    margin-top: 42px;
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-feature {
+    border-left: 0 !important;
+    border-top: 1px solid var(--border);
+  }
+
+  .onboarding-feature:first-child {
+    border-top: 0;
+  }
+
+  .onboarding-bottom-line {
+    width: 65%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-orb,
+  .floating-card,
+  .onboarding-secure-dot,
+  .onboarding-button::before,
+  .onboarding-status-dot {
+    animation: none !important;
+  }
+}
