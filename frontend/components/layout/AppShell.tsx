@@ -13,11 +13,17 @@ interface AppShellProps {
 export default function AppShell({
   children,
 }: AppShellProps) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] =
+    useState(false);
+
+  const [mobileOpen, setMobileOpen] =
+    useState(false);
+
   const [showOnboarding, setShowOnboarding] =
     useState(false);
-  const [mounted, setMounted] = useState(false);
+
+  const [mounted, setMounted] =
+    useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -26,7 +32,7 @@ export default function AppShell({
 
     const onboardingComplete =
       window.localStorage.getItem(
-        "hr365_onboarding_complete"
+        "hr365_onboarding_complete",
       );
 
     if (!onboardingComplete) {
@@ -35,25 +41,20 @@ export default function AppShell({
   }, []);
 
   /*
-   * Prevent hydration mismatch and avoid rendering
-   * the application before the client has checked
-   * localStorage.
+   * Prevent hydration mismatch while checking
+   * the onboarding state in localStorage.
    */
   if (!mounted) {
     return null;
   }
 
   /*
-   * First-time authenticated experience.
+   * First-time onboarding / startup experience.
    *
-   * OnboardingScreen handles the Render cold-start
-   * silently in the background. The user never sees
-   * the old "Waking up your workspace" screen.
+   * This replaces the old Render waiting screen.
    */
   if (showOnboarding) {
-    return (
-      <OnboardingScreen />
-    );
+    return <OnboardingScreen />;
   }
 
   return (
@@ -61,27 +62,40 @@ export default function AppShell({
       <div className="flex min-h-screen">
         {/* =====================================================
             DESKTOP SIDEBAR
-            ===================================================== */}
+        ===================================================== */}
 
         <Sidebar
           collapsed={collapsed}
           onToggle={() =>
-            setCollapsed((current) => !current)
+            setCollapsed(
+              (current) => !current,
+            )
           }
         />
 
         {/* =====================================================
             MAIN APPLICATION
-            ===================================================== */}
+        ===================================================== */}
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <Topbar
             onMenuToggle={() =>
               setMobileOpen(true)
             }
           />
 
-          <main className="min-w-0 flex-1 pt-[68px]">
+          {/*
+           * IMPORTANT:
+           *
+           * Topbar is sticky and already occupies its
+           * 72px height in the layout.
+           *
+           * Do NOT add pt-[68px] here.
+           *
+           * That was causing the entire assistant content
+           * to be pushed down.
+           */}
+          <main className="min-h-0 min-w-0 flex-1">
             {children}
           </main>
         </div>
@@ -89,7 +103,7 @@ export default function AppShell({
 
       {/* =======================================================
           MOBILE NAVIGATION
-          ======================================================= */}
+      ======================================================= */}
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
@@ -101,7 +115,11 @@ export default function AppShell({
             onClick={() =>
               setMobileOpen(false)
             }
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="
+              absolute inset-0
+              bg-black/50
+              backdrop-blur-sm
+            "
           />
 
           {/* Mobile sidebar */}

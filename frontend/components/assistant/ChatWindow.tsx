@@ -7,193 +7,237 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowUp, Loader2, Sparkles } from "lucide-react";
+
+import {
+  ArrowUp,
+  CalendarDays,
+  Check,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 import ChatMessage from "@/components/ai/ChatMessage";
 import SuggestedQuestions from "@/components/ai/SuggestedQuestions";
-import { apiFetch } from "@/lib/api";
+import { useChat } from "@/hooks/useChat";
 
-interface Source {
-  source?: string;
-  filename?: string;
-  score?: number;
-  chunk?: string;
-  [key: string]: unknown;
-}
+/* ================================================================
+   HELPERS
+================================================================ */
 
-interface Confidence {
-  score: number;
-  level: "high" | "medium" | "low" | string;
-  top_similarity?: number;
-  mean_similarity?: number;
-  evidence_score?: number;
-  relevant_chunk_count?: number;
-}
-
-interface AskResponse {
-  answer: string;
-  sources: Source[];
-  confidence: Confidence;
-  escalation_required: boolean;
-  escalation_reason?: string | null;
-  hr_ticket_id?: string | null;
-}
-
-interface ChatMessageType {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  response?: AskResponse;
-}
-
-export default function ChatWindow() {
-  const [messages, setMessages] = useState<
-    ChatMessageType[]
-  >([]);
-
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const messagesEndRef = useRef<HTMLDivElement | null>(
-    null,
+function formatDate(
+  value: string,
+): string {
+  const date = new Date(
+    `${value}T00:00:00`,
   );
 
-  const textareaRef =
-    useRef<HTMLTextAreaElement | null>(null);
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value;
+  }
 
-  /*
-   * Keep the latest message visible when the assistant
-   * responds or the conversation grows.
-   */
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    },
+  );
+}
+
+function formatLeaveType(
+  value: string,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    casual: "Casual Leave",
+    sick: "Sick Leave",
+    earned: "Earned Leave",
+    annual: "Annual Leave",
+    maternity: "Maternity Leave",
+    paternity: "Paternity Leave",
+    bereavement: "Bereavement Leave",
+    lwp: "Leave Without Pay",
+    other: "Other Leave",
+  };
+
+  return (
+    labels[value] ||
+    value
+      .replace(
+        /\b\w/g,
+        (character) =>
+          character.toUpperCase(),
+      )
+  );
+}
+
+function calculateDays(
+  start: string,
+  end: string,
+): number {
+  const startDate = new Date(
+    `${start}T00:00:00`,
+  );
+
+  const endDate = new Date(
+    `${end}T00:00:00`,
+  );
+
+  const difference =
+    endDate.getTime() -
+    startDate.getTime();
+
+  return (
+    Math.floor(
+      difference /
+        (1000 * 60 * 60 * 24),
+    ) + 1
+  );
+}
+
+/* ================================================================
+   CHAT WINDOW
+================================================================ */
+
+export default function ChatWindow() {
+  const {
+    messages,
+    loading,
+    sendMessage,
+    pendingLeave,
+    confirmLeave,
+    cancelLeave,
+  } = useChat();
+
+  const [input, setInput] =
+    useState("");
+
+  const messagesEndRef =
+    useRef<HTMLDivElement | null>(
+      null,
+    );
+
+  const textareaRef =
+    useRef<HTMLTextAreaElement | null>(
+      null,
+    );
+
+  /* ==============================================================
+     SCROLL TO LATEST MESSAGE
+  ============================================================== */
+
   useEffect(() => {
     if (!loading) {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: "smooth",
-      });
+      messagesEndRef.current?.scrollIntoView(
+        {
+          behavior: "smooth",
+          block: "end",
+        },
+      );
     }
-  }, [messages, loading]);
+  }, [
+    messages,
+    loading,
+  ]);
 
-  /*
-   * Automatically focus the composer when the page opens.
-   */
+  /* ==============================================================
+     AUTO FOCUS
+  ============================================================== */
+
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
 
-  /*
-   * Resize textarea based on its content.
-   */
+  /* ==============================================================
+     TEXTAREA RESIZE
+  ============================================================== */
+
   useEffect(() => {
-    const textarea = textareaRef.current;
+    const textarea =
+      textareaRef.current;
 
-    if (!textarea) return;
+    if (!textarea) {
+      return;
+    }
 
-    textarea.style.height = "auto";
+    textarea.style.height =
+      "auto";
+
     textarea.style.height = `${Math.min(
       textarea.scrollHeight,
       180,
     )}px`;
   }, [input]);
 
+  /* ==============================================================
+     SUBMIT
+  ============================================================== */
+
   const submitQuestion = async (
     question: string,
   ) => {
-    const trimmedQuestion = question.trim();
+    const trimmed =
+      question.trim();
 
-    if (!trimmedQuestion || loading) {
+    if (
+      !trimmed ||
+      loading
+    ) {
       return;
     }
 
-    const userMessage: ChatMessageType = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: trimmedQuestion,
-    };
-
-    setMessages((current) => [
-      ...current,
-      userMessage,
-    ]);
-
     setInput("");
-    setLoading(true);
 
-    try {
-      const response = await apiFetch<AskResponse>(
-        "/api/ask",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            question: trimmedQuestion,
-          }),
-        },
-      );
-
-      const assistantMessage: ChatMessageType = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: response.answer,
-        response,
-      };
-
-      setMessages((current) => [
-        ...current,
-        assistantMessage,
-      ]);
-    } catch (error) {
-      console.error(
-        "Unable to process HR365 question:",
-        error,
-      );
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to process your question.";
-
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: `I couldn't process that request.\n\n${message}`,
-        },
-      ]);
-    } finally {
-      setLoading(false);
-
-      /*
-       * Restore focus to the composer after the response.
-       */
-      setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 0);
-    }
+    await sendMessage(trimmed);
   };
+
+  /* ==============================================================
+     FORM
+  ============================================================== */
 
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
 
-    await submitQuestion(input);
+    await submitQuestion(
+      input,
+    );
   };
+
+  /* ==============================================================
+     KEYBOARD
+  ============================================================== */
 
   const handleKeyDown = (
     event: KeyboardEvent<HTMLTextAreaElement>,
   ) => {
     /*
-     * Enter sends.
-     * Shift + Enter creates a new line.
+     * Enter = send
+     * Shift + Enter = newline
      */
+
     if (
       event.key === "Enter" &&
       !event.shiftKey
     ) {
       event.preventDefault();
 
-      if (!loading && input.trim()) {
-        void submitQuestion(input);
+      if (
+        !loading &&
+        input.trim()
+      ) {
+        void submitQuestion(
+          input,
+        );
       }
     }
   };
@@ -201,55 +245,330 @@ export default function ChatWindow() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--background)]">
       {/* =========================================================
-          HEADER
+          ASSISTANT HEADER
       ========================================================= */}
 
-      <div className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)]/80 px-5 py-4 backdrop-blur-xl sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--foreground)] text-[var(--background)]">
-            <Sparkles size={17} />
+      <div
+        className="
+          shrink-0
+          border-b border-[var(--border)]
+          bg-[var(--surface)]/80
+          px-5 py-4
+          backdrop-blur-xl
+          sm:px-8
+        "
+      >
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="
+                flex h-9 w-9
+                items-center justify-center
+                rounded-xl
+                text-white
+              "
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--accent-2), var(--accent-6))",
+                boxShadow:
+                  "0 8px 18px -8px var(--accent-2)",
+              }}
+            >
+              <Sparkles size={17} />
+            </div>
+
+            <div>
+              <h1 className="text-sm font-semibold text-[var(--foreground)]">
+                HR365 Assistant
+              </h1>
+
+              <p className="text-xs text-[var(--muted)]">
+                Your AI-powered HR workspace
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-sm font-semibold text-[var(--foreground)]">
-              HR365 Assistant
-            </h1>
+          <div
+            className="
+              hidden items-center gap-1.5
+              rounded-full border
+              border-[var(--border)]
+              bg-[var(--surface)]/60
+              px-3 py-1.5
+              text-[10px] font-semibold
+              tracking-[0.12em]
+              text-[var(--muted)]
+              uppercase
+              sm:flex
+            "
+          >
+            <span
+              className="
+                h-1.5 w-1.5
+                rounded-full
+                bg-emerald-400
+                shadow-[0_0_8px_rgba(52,211,153,0.65)]
+              "
+            />
 
-            <p className="text-xs text-[var(--muted)]">
-              Your AI-powered HR workspace
-            </p>
+            AI
           </div>
         </div>
       </div>
 
       {/* =========================================================
-          MESSAGES
+          MESSAGE AREA
       ========================================================= */}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
           {messages.length === 0 ? (
             <EmptyChat
-              onSelectQuestion={(question) => {
-                void submitQuestion(question);
+              onSelectQuestion={(
+                question,
+              ) => {
+                void submitQuestion(
+                  question,
+                );
               }}
             />
           ) : (
             <div className="space-y-8">
-              {messages.map((message) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                />
-              ))}
+              {messages.map(
+                (message) => (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                  />
+                ),
+              )}
 
-              {loading && <TypingIndicator />}
+              {/* ==================================================
+                  TYPING INDICATOR
+              ================================================== */}
 
-              <div ref={messagesEndRef} />
+              {loading && (
+                <TypingIndicator />
+              )}
+
+              <div
+                ref={
+                  messagesEndRef
+                }
+              />
             </div>
           )}
         </div>
       </div>
+
+      {/* =========================================================
+          LEAVE CONFIRMATION
+      ========================================================= */}
+
+      {pendingLeave?.payload && (
+        <div
+          className="
+            shrink-0
+            border-t border-[var(--border)]
+            bg-[var(--background)]/95
+            px-4 py-3
+            backdrop-blur-xl
+            sm:px-8
+          "
+        >
+          <div className="mx-auto max-w-5xl">
+            <div
+              className="
+                overflow-hidden
+                rounded-2xl
+                border
+                border-[var(--border)]
+                bg-[var(--surface)]
+                shadow-[var(--shadow-md)]
+              "
+            >
+              <div className="flex items-start gap-3 p-4">
+                <div
+                  className="
+                    flex h-9 w-9 shrink-0
+                    items-center justify-center
+                    rounded-xl
+                  "
+                  style={{
+                    background:
+                      "var(--accent-2-soft)",
+                    color:
+                      "var(--accent-2)",
+                  }}
+                >
+                  <CalendarDays
+                    size={17}
+                  />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold tracking-[0.12em] text-[var(--muted)] uppercase">
+                    Confirm leave request
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+                    {formatLeaveType(
+                      pendingLeave
+                        .payload
+                        .leave_type,
+                    )}
+                  </p>
+
+                  <p className="mt-1 text-[12.5px] text-[var(--muted)]">
+                    {formatDate(
+                      pendingLeave
+                        .payload
+                        .start_date,
+                    )}{" "}
+                    →{" "}
+                    {formatDate(
+                      pendingLeave
+                        .payload
+                        .end_date,
+                    )}{" "}
+                    ·{" "}
+                    {calculateDays(
+                      pendingLeave
+                        .payload
+                        .start_date,
+                      pendingLeave
+                        .payload
+                        .end_date,
+                    )}{" "}
+                    {calculateDays(
+                      pendingLeave
+                        .payload
+                        .start_date,
+                      pendingLeave
+                        .payload
+                        .end_date,
+                    ) === 1
+                      ? "day"
+                      : "days"}
+                  </p>
+
+                  {pendingLeave
+                    .payload
+                    .reason && (
+                    <p className="mt-2 text-[12px] leading-5 text-[var(--foreground-soft)]">
+                      {
+                        pendingLeave
+                          .payload
+                          .reason
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    cancelLeave
+                  }
+                  disabled={loading}
+                  aria-label="Cancel leave request"
+                  className="
+                    flex h-8 w-8
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-lg
+                    text-[var(--muted)]
+                    transition-colors
+                    hover:bg-[var(--surface-hover)]
+                    hover:text-[var(--foreground)]
+                    disabled:opacity-40
+                  "
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div
+                className="
+                  flex items-center
+                  justify-end gap-2
+                  border-t
+                  border-[var(--border)]
+                  bg-[var(--surface-hover)]/30
+                  px-4 py-3
+                "
+              >
+                <button
+                  type="button"
+                  onClick={
+                    cancelLeave
+                  }
+                  disabled={loading}
+                  className="
+                    rounded-xl
+                    px-3.5 py-2
+                    text-[12px]
+                    font-medium
+                    text-[var(--muted)]
+                    transition-colors
+                    hover:bg-[var(--surface-hover)]
+                    hover:text-[var(--foreground)]
+                    disabled:opacity-40
+                  "
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    () => {
+                      void confirmLeave();
+                    }
+                  }
+                  disabled={loading}
+                  className="
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-xl
+                    px-4 py-2
+                    text-[12px]
+                    font-semibold
+                    text-white
+                    shadow-sm
+                    transition-all
+                    hover:-translate-y-0.5
+                    hover:shadow-md
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+                  "
+                  style={{
+                    background:
+                      "linear-gradient(135deg, var(--accent-1), var(--accent-6))",
+                  }}
+                >
+                  {loading ? (
+                    <Loader2
+                      size={14}
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <Check
+                      size={14}
+                    />
+                  )}
+
+                  {loading
+                    ? "Submitting..."
+                    : "Confirm & submit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================
           COMPOSER
@@ -258,29 +577,72 @@ export default function ChatWindow() {
       <div className="shrink-0 border-t border-[var(--border)] bg-[var(--background)] px-4 py-4 sm:px-8 sm:py-5">
         <div className="mx-auto max-w-5xl">
           <form
-            onSubmit={handleSubmit}
-            className="relative rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition focus-within:border-[var(--foreground)]/30"
+            onSubmit={
+              handleSubmit
+            }
+            className="
+              relative
+              rounded-2xl
+              border border-[var(--border)]
+              bg-[var(--surface)]
+              shadow-sm
+              transition
+              focus-within:border-[var(--foreground)]/30
+            "
           >
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(event) =>
-                setInput(event.target.value)
+                setInput(
+                  event.target.value,
+                )
               }
-              onKeyDown={handleKeyDown}
+              onKeyDown={
+                handleKeyDown
+              }
               placeholder="Ask HR365 anything..."
               rows={1}
               disabled={loading}
-              className="block max-h-[180px] min-h-[58px] w-full resize-none bg-transparent px-5 py-4 pr-16 text-sm leading-6 text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="
+                block w-full
+                max-h-[180px]
+                min-h-[58px]
+                resize-none
+                bg-transparent
+                px-5 py-4 pr-16
+                text-sm
+                leading-6
+                text-[var(--foreground)]
+                outline-none
+                placeholder:text-[var(--muted)]
+                disabled:cursor-not-allowed
+                disabled:opacity-60
+              "
             />
 
             <button
               type="submit"
               disabled={
-                loading || !input.trim()
+                loading ||
+                !input.trim()
               }
               aria-label="Send message"
-              className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--foreground)] text-[var(--background)] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-30"
+              className="
+                absolute
+                bottom-3 right-3
+                flex h-9 w-9
+                items-center
+                justify-center
+                rounded-xl
+                bg-[var(--foreground)]
+                text-[var(--background)]
+                transition-all
+                hover:scale-105
+                hover:opacity-85
+                disabled:cursor-not-allowed
+                disabled:opacity-30
+              "
             >
               {loading ? (
                 <Loader2
@@ -288,7 +650,9 @@ export default function ChatWindow() {
                   className="animate-spin"
                 />
               ) : (
-                <ArrowUp size={17} />
+                <ArrowUp
+                  size={17}
+                />
               )}
             </button>
           </form>
@@ -316,7 +680,20 @@ function EmptyChat({
 }) {
   return (
     <div className="flex min-h-[55vh] flex-col items-center justify-center text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--foreground)] text-[var(--background)]">
+      <div
+        className="
+          flex h-14 w-14
+          items-center justify-center
+          rounded-2xl
+          text-white
+        "
+        style={{
+          background:
+            "linear-gradient(135deg, var(--accent-2), var(--accent-6))",
+          boxShadow:
+            "0 12px 28px -12px var(--accent-2)",
+        }}
+      >
         <Sparkles size={24} />
       </div>
 
@@ -329,13 +706,15 @@ function EmptyChat({
       </h2>
 
       <p className="mt-3 max-w-lg text-sm leading-6 text-[var(--muted)]">
-        Ask about company policies, leave, attendance,
-        benefits, HR requests, or your personal HR
-        information.
+        Ask about company policies, leave,
+        attendance, benefits, HR requests,
+        or your personal HR information.
       </p>
 
       <SuggestedQuestions
-        onSelect={onSelectQuestion}
+        onSelect={
+          onSelectQuestion
+        }
       />
     </div>
   );
@@ -348,14 +727,36 @@ function EmptyChat({
 function TypingIndicator() {
   return (
     <div className="flex items-start gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--foreground)] text-[var(--background)]">
+      <div
+        className="
+          flex h-8 w-8 shrink-0
+          items-center
+          justify-center
+          rounded-xl
+          text-white
+        "
+        style={{
+          background:
+            "linear-gradient(135deg, var(--accent-2), var(--accent-6))",
+        }}
+      >
         <Sparkles size={14} />
       </div>
 
-      <div className="rounded-2xl rounded-tl-md border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+      <div
+        className="
+          rounded-2xl
+          rounded-tl-md
+          border border-[var(--border)]
+          bg-[var(--surface)]
+          px-4 py-3
+        "
+      >
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--muted)]" />
+
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--muted)] [animation-delay:150ms]" />
+
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--muted)] [animation-delay:300ms]" />
         </div>
       </div>
