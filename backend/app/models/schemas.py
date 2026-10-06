@@ -9,13 +9,27 @@ from pydantic import BaseModel, Field
 
 
 class AskRequest(BaseModel):
-    question: str = Field(..., min_length=1, description="Natural-language question.")
+    question: str = Field(
+        ...,
+        min_length=1,
+        description="Natural-language question.",
+    )
 
 
 class SourceItem(BaseModel):
-    source: str = Field(..., description="Originating file name.")
-    chunk_id: str = Field(..., description="Unique chunk identifier.")
-    score: float = Field(..., description="Combined relevance score.")
+    source: str = Field(
+        ...,
+        description="Originating file name.",
+    )
+    chunk_id: str = Field(
+        ...,
+        description="Unique chunk identifier.",
+    )
+    score: float = Field(
+        ...,
+        description="Combined relevance score.",
+    )
+
 
 class ConfidenceItem(BaseModel):
     score: float
@@ -25,6 +39,7 @@ class ConfidenceItem(BaseModel):
     evidence_score: float
     relevant_chunk_count: int
 
+
 class AskResponse(BaseModel):
     answer: str
     sources: List[SourceItem]
@@ -33,16 +48,20 @@ class AskResponse(BaseModel):
     escalation_reason: str | None = None
     hr_ticket_id: str | None = None
 
+
 class HealthResponse(BaseModel):
     status: str
     indexed_chunks: int
     llm_available: bool
+
 
 class LeaveCreateRequest(BaseModel):
     leave_type: str
     start_date: date
     end_date: date
     reason: str | None = None
+    notify_hr: bool = True
+
 
 class HRRequestCreateRequest(BaseModel):
     category: str = Field(

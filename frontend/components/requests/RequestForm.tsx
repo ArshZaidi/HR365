@@ -57,7 +57,9 @@ export default function RequestForm({
       setCategory("general");
       setPriority("normal");
 
-      setMessage("HR request submitted.");
+      setMessage(
+        "HR request submitted. HR has been notified by email.",
+      );
 
       onCreated();
     } catch (err) {
@@ -77,10 +79,12 @@ export default function RequestForm({
             className="h-6 w-1 shrink-0 rounded-full"
             style={{ background: "var(--accent-5)" }}
           />
+
           <div>
             <p className="font-display text-[17px] font-medium tracking-[-0.015em]">
               New HR request
             </p>
+
             <p className="mt-0.5 text-[12.5px] text-[var(--muted)]">
               Ask HR for help with a specific issue.
             </p>
@@ -149,11 +153,25 @@ export default function RequestForm({
           />
         </div>
 
+        <div
+          className="
+            rounded-xl border border-[var(--border)]
+            bg-[var(--surface)]/40 px-4 py-3.5
+          "
+        >
+          <p className="text-[13px] font-medium">
+            HR notification
+          </p>
+
+          <p className="mt-1 text-[12px] leading-5 text-[var(--muted)]">
+            HR will automatically receive this request by email when you
+            submit it.
+          </p>
+        </div>
+
         {message && (
           <p
-            className="
-              rounded-xl px-4 py-3 text-[12.5px] font-medium
-            "
+            className="rounded-xl px-4 py-3 text-[12.5px] font-medium"
             style={{
               background: "var(--accent-5-soft)",
               color: "var(--accent-5)",

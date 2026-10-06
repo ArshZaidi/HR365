@@ -28,11 +28,73 @@ from app.models.schemas import LeaveCreateRequest
 from app.services.task_reassignment import TaskReassignmentService
 
 
+import os
+import smtplib
+from email.message import EmailMessage
+
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
 
 logger = logging.getLogger("hr365.leaves")
+
+def _send_hr_email(
+    *,
+    subject: str,
+    body: str,
+) -> None:
+    """
+    Send an HR notification email.
+
+    Email failures are logged server-side and do not prevent
+    the leave request itself from being created.
+    """
+
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_username = os.getenv("SMTP_USERNAME")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    from_email = os.getenv(
+        "SMTP_FROM_EMAIL",
+        smtp_username or "",
+    )
+    hr_email = os.getenv("HR365_HR_EMAIL")
+
+    if not smtp_host or not smtp_username or not smtp_password or not hr_email:
+        logger.warning(
+            "Leave HR email skipped because SMTP configuration is incomplete."
+        )
+        return
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = from_email
+    message["To"] = hr_email
+    message.set_content(body)
+
+    try:
+        with smtplib.SMTP(
+            smtp_host,
+            smtp_port,
+            timeout=20,
+        ) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+            smtp.login(
+                smtp_username,
+                smtp_password,
+            )
+            smtp.send_message(message)
+
+        logger.info("Leave HR email sent successfully.")
+
+    except Exception as exc:
+        logger.exception(
+            "Unable to send leave HR email: %s",
+            exc,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -597,6 +659,7 @@ def _create_leave_for_employee(
     start_date: date,
     end_date: date,
     reason: str | None,
+    notify_hr: bool = False,
 ) -> dict:
     """
     Shared validated leave-creation implementation.
@@ -705,7 +768,52 @@ def _create_leave_for_employee(
             detail="Leave request was not created.",
         )
 
-    return response.data[0]
+    leave = response.data[0]
+
+    if notify_hr:
+        try:
+            profile_response = (
+                client
+                .table("profiles")
+                .select(
+                    "employee_id, full_name, email, department, designation"
+                )
+                .eq("id", employee_id)
+                .single()
+                .execute()
+            )
+
+            employee = profile_response.data or {}
+
+            _send_hr_email(
+                subject=(
+                    f"HR365 Leave Request — "
+                    f"{employee.get('full_name', 'Employee')}"
+                ),
+                body=(
+                    "A new leave request has been submitted in HR365.\n\n"
+                    f"Employee: {employee.get('full_name', 'Unknown')}\n"
+                    f"Employee ID: {employee.get('employee_id', 'Unknown')}\n"
+                    f"Department: {employee.get('department', 'Unknown')}\n"
+                    f"Designation: {employee.get('designation', 'Unknown')}\n\n"
+                    f"Leave type: {leave.get('leave_type', 'Unknown')}\n"
+                    f"Start date: {leave.get('start_date', 'Unknown')}\n"
+                    f"End date: {leave.get('end_date', 'Unknown')}\n"
+                    f"Status: {leave.get('status', 'pending')}\n\n"
+                    f"Reason:\n{leave.get('reason') or 'No reason provided.'}\n\n"
+                    f"Leave ID: {leave.get('id', 'Unknown')}\n"
+                ),
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "Leave was created but HR notification could not be prepared. "
+                "employee_id=%s error=%s",
+                employee_id,
+                exc,
+            )
+
+    return leave
 
 
 # ---------------------------------------------------------------------------
@@ -1125,6 +1233,7 @@ def confirm_leave_action(
         start_date=request.start_date,
         end_date=request.end_date,
         reason=request.reason,
+        notify_hr=request.notify_hr,
     )
 
     days = _calculate_leave_days(
@@ -1167,6 +1276,7 @@ def create_leave(
         start_date=request.start_date,
         end_date=request.end_date,
         reason=request.reason,
+        notify_hr=request.notify_hr,
     )
 
     return {

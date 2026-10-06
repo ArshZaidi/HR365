@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   Check,
+  Download,
   Loader2,
   Mic,
   MicOff,
@@ -139,6 +140,57 @@ const DEFAULT_QUESTIONS = [
 ];
 
 /* ================================================================
+   CHAT EXPORT
+================================================================ */
+
+function downloadChat(
+  messages: Array<{
+    role: string;
+    content: string;
+  }>,
+) {
+  if (!messages.length) return;
+
+  const lines: string[] = [
+    "HR365 ASSISTANT CHAT",
+    "====================",
+    "",
+  ];
+
+  messages.forEach((message) => {
+    const speaker =
+      message.role === "user"
+        ? "You"
+        : "HR365 Assistant";
+
+    lines.push(`${speaker}:`);
+    lines.push(message.content.trim());
+    lines.push("");
+  });
+
+  const text = lines.join("\n");
+
+  const blob = new Blob(
+    [text],
+    { type: "text/plain;charset=utf-8" },
+  );
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = `hr365-chat-${new Date()
+    .toISOString()
+    .slice(0, 10)}.txt`;
+
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+/* ================================================================
    CHAT WINDOW
 ================================================================ */
 
@@ -245,6 +297,7 @@ export default function ChatWindow() {
   };
 
   const canSend = Boolean(input.trim()) && !loading;
+  const canDownloadChat = messages.length > 0;
 
   return (
     <div className="flex h-[calc(100vh-72px)] min-h-0 flex-col overflow-hidden">
@@ -284,19 +337,49 @@ export default function ChatWindow() {
             </div>
           </div>
 
-          <span
-            className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.06em] uppercase sm:inline-flex"
-            style={{
-              background: "var(--accent-2-soft)",
-              color: "var(--accent-2)",
-            }}
-          >
+          <div className="flex items-center gap-2">
+            {/* Download chat */}
+            <button
+              type="button"
+              onClick={() => downloadChat(messages)}
+              disabled={!canDownloadChat}
+              aria-label="Download chat"
+              title={
+                canDownloadChat
+                  ? "Download chat as text file"
+                  : "No chat to download"
+              }
+              className="
+                flex h-9 w-9 items-center justify-center rounded-xl
+                border border-[var(--border)]
+                bg-[var(--surface)]/50
+                text-[var(--muted)]
+                backdrop-blur-xl
+                transition-all duration-200
+                hover:border-[var(--border-strong)]
+                hover:bg-[var(--surface-hover)]
+                hover:text-[var(--foreground)]
+                disabled:cursor-not-allowed
+                disabled:opacity-30
+              "
+            >
+              <Download size={15} />
+            </button>
+
             <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ background: "var(--accent-2)" }}
-            />
-            AI
-          </span>
+              className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.06em] uppercase sm:inline-flex"
+              style={{
+                background: "var(--accent-2-soft)",
+                color: "var(--accent-2)",
+              }}
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: "var(--accent-2)" }}
+              />
+              AI
+            </span>
+          </div>
         </div>
       </div>
 
@@ -320,8 +403,6 @@ export default function ChatWindow() {
                   message={message}
                 />
               ))}
-
-              {/* ═══════════ LEAVE CONFIRMATION ═══════════ */}
 
               {pendingLeave?.payload && (
                 <LeaveConfirmationCard
@@ -514,7 +595,6 @@ function LeaveConfirmationCard({
 
   return (
     <div className="flex items-start gap-3.5">
-      {/* AI icon */}
       <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white"
         style={{

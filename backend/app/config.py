@@ -124,3 +124,9 @@ def ensure_dirs() -> None:
             exist_ok=True,
         )
         
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "")
+HR_NOTIFICATION_EMAIL = os.getenv("HR_NOTIFICATION_EMAIL", "")

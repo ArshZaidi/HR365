@@ -1,4 +1,7 @@
-import { CalendarDays, Clock } from "lucide-react";
+"use client";
+
+import { CalendarDays, Clock, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 import { AttendanceRecord } from "@/types/attendance";
 import {
@@ -22,6 +25,7 @@ function formatTime(value?: string | null) {
   if (!value) return "—";
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleTimeString("en-IN", {
@@ -38,9 +42,70 @@ function getStatusVariant(
   if (normalized === "present") return "success";
   if (normalized === "absent") return "danger";
   if (normalized === "leave") return "info";
-  if (normalized === "half_day" || normalized === "half day") return "warning";
+  if (
+    normalized === "half_day" ||
+    normalized === "half day"
+  ) {
+    return "warning";
+  }
 
   return "neutral";
+}
+
+function formatWorkingHours(
+  value?: number | null,
+) {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  return `${Number(value).toFixed(2)} hrs`;
+}
+
+function downloadAttendance(records: AttendanceRecord[]) {
+  if (!records.length) return;
+
+  const rows = records.map((record) => ({
+    Date: record.date,
+    Status: record.status.replace("_", " "),
+    "Check In": record.check_in
+      ? formatTime(record.check_in)
+      : "",
+    "Check Out": record.check_out
+      ? formatTime(record.check_out)
+      : "",
+    "Working Hours":
+      record.working_hours ?? "",
+    Remarks: record.remarks ?? "",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+
+  worksheet["!cols"] = [
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 40 },
+  ];
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Attendance",
+  );
+
+  const today = new Date()
+    .toISOString()
+    .slice(0, 10);
+
+  XLSX.writeFile(
+    workbook,
+    `HR365_Attendance_${today}.xlsx`,
+  );
 }
 
 export default function AttendanceTable({
@@ -76,6 +141,31 @@ export default function AttendanceTable({
       subtitle="Your recent attendance records"
       padded={false}
     >
+      <div className="flex items-center justify-end border-b border-[var(--border)] px-5 py-3 sm:px-6">
+        <button
+          type="button"
+          onClick={() => downloadAttendance(records)}
+          className="
+            inline-flex items-center gap-2 rounded-xl
+            border border-[var(--border)]
+            bg-[var(--surface)]/60
+            px-3.5 py-2
+            text-[12.5px] font-medium
+            text-[var(--muted)]
+            backdrop-blur-xl
+            transition-all duration-200
+            hover:-translate-y-0.5
+            hover:border-[var(--border-strong)]
+            hover:bg-[var(--surface-hover)]
+            hover:text-[var(--foreground)]
+          "
+          title="Download attendance as Excel"
+        >
+          <Download size={14} />
+          Download Excel
+        </button>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left">
           <thead>
@@ -128,7 +218,9 @@ export default function AttendanceTable({
                 </td>
 
                 <td className="px-6 py-4">
-                  <StatusBadge variant={getStatusVariant(record.status)}>
+                  <StatusBadge
+                    variant={getStatusVariant(record.status)}
+                  >
                     {record.status.replace("_", " ")}
                   </StatusBadge>
                 </td>
@@ -136,6 +228,7 @@ export default function AttendanceTable({
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2 text-[14px] text-[var(--muted)]">
                     <Clock size={13} className="shrink-0" />
+
                     <span className="tabular-nums">
                       {formatTime(record.check_in)}
                     </span>
@@ -145,6 +238,7 @@ export default function AttendanceTable({
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2 text-[14px] text-[var(--muted)]">
                     <Clock size={13} className="shrink-0" />
+
                     <span className="tabular-nums">
                       {formatTime(record.check_out)}
                     </span>

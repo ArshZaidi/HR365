@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Send } from "lucide-react";
+import { Check, Send } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
 import { GlassPanel } from "@/components/ui/premium";
@@ -30,6 +30,7 @@ export default function LeaveForm({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
+  const [notifyHr, setNotifyHr] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -48,14 +49,20 @@ export default function LeaveForm({
           start_date: startDate,
           end_date: endDate,
           reason,
+          notify_hr: notifyHr,
         }),
       });
 
       setStartDate("");
       setEndDate("");
       setReason("");
+      setNotifyHr(true);
 
-      setMessage("Leave request submitted.");
+      setMessage(
+        notifyHr
+          ? "Leave request submitted. HR has been notified by email."
+          : "Leave request submitted.",
+      );
 
       onCreated();
     } catch (err) {
@@ -77,10 +84,12 @@ export default function LeaveForm({
             className="h-6 w-1 shrink-0 rounded-full"
             style={{ background: "var(--accent-4)" }}
           />
+
           <div>
             <p className="font-display text-[17px] font-medium tracking-[-0.015em]">
               Apply for leave
             </p>
+
             <p className="mt-0.5 text-[12.5px] text-[var(--muted)]">
               Submit a new leave request for HR approval.
             </p>
@@ -100,6 +109,7 @@ export default function LeaveForm({
             <option value="casual">Casual</option>
             <option value="sick">Sick</option>
             <option value="earned">Earned</option>
+            <option value="annual">Annual</option>
             <option value="unpaid">Unpaid</option>
           </select>
         </div>
@@ -142,6 +152,47 @@ export default function LeaveForm({
             className={`${inputBase} resize-none`}
           />
         </div>
+
+        <label
+          className="
+            flex cursor-pointer items-start gap-3 rounded-xl
+            border border-[var(--border)]
+            bg-[var(--surface)]/40
+            px-4 py-3.5
+            transition-all duration-200
+            hover:border-[var(--border-strong)]
+            hover:bg-[var(--surface)]/60
+          "
+        >
+          <span
+            className={[
+              "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md",
+              "border transition-all duration-200",
+              notifyHr
+                ? "border-[var(--accent-4)] bg-[var(--accent-4)] text-white"
+                : "border-[var(--border-strong)] bg-[var(--surface)]",
+            ].join(" ")}
+          >
+            {notifyHr && <Check size={13} strokeWidth={3} />}
+          </span>
+
+          <input
+            type="checkbox"
+            checked={notifyHr}
+            onChange={(event) => setNotifyHr(event.target.checked)}
+            className="sr-only"
+          />
+
+          <span className="min-w-0">
+            <span className="block text-[13.5px] font-medium">
+              Email HR about this leave
+            </span>
+
+            <span className="mt-0.5 block text-[12px] leading-5 text-[var(--muted)]">
+              HR will receive the leave details by email after submission.
+            </span>
+          </span>
+        </label>
 
         {message && (
           <p

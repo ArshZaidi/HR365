@@ -255,7 +255,7 @@ class EmployeeDataService:
                 1
                 for record in attendance
                 if str(record.get("status", "")).lower()
-                in {"half-day", "half day"}
+                in {"half_day", "half-day", "half day"}
             )
 
             absent = sum(

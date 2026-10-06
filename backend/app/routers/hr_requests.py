@@ -1,5 +1,8 @@
 from datetime import datetime, timezone
+from email.message import EmailMessage
 import logging
+import os
+import smtplib
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -30,6 +33,67 @@ class HREscalationRequest(BaseModel):
     reason: str | None = None
 
 
+def _send_hr_email(
+    *,
+    subject: str,
+    body: str,
+) -> None:
+    """
+    Send an HR notification email.
+
+    Email failures are logged server-side and do not prevent
+    the HR request itself from being created.
+    """
+
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_username = os.getenv("SMTP_USERNAME")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    from_email = os.getenv(
+        "SMTP_FROM_EMAIL",
+        smtp_username or "",
+    )
+    hr_email = os.getenv("HR365_HR_EMAIL")
+
+    if not smtp_host or not smtp_username or not smtp_password or not hr_email:
+        logger.warning(
+            "HR email notification skipped because SMTP configuration "
+            "is incomplete."
+        )
+        return
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = from_email
+    message["To"] = hr_email
+    message.set_content(body)
+
+    try:
+        with smtplib.SMTP(
+            smtp_host,
+            smtp_port,
+            timeout=20,
+        ) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+            smtp.login(
+                smtp_username,
+                smtp_password,
+            )
+            smtp.send_message(message)
+
+        logger.info(
+            "HR email notification sent successfully."
+        )
+
+    except Exception as exc:
+        logger.exception(
+            "Unable to send HR email notification: %s",
+            exc,
+        )
+
+
 def _decrypt_request_row(row: dict) -> dict:
     """
     Decrypt sensitive HR request fields before returning
@@ -40,7 +104,9 @@ def _decrypt_request_row(row: dict) -> dict:
 
     try:
         if decrypted.get("subject"):
-            decrypted["subject"] = decrypt_text(decrypted["subject"])
+            decrypted["subject"] = decrypt_text(
+                decrypted["subject"]
+            )
 
         if decrypted.get("description"):
             decrypted["description"] = decrypt_text(
@@ -53,6 +119,7 @@ def _decrypt_request_row(row: dict) -> dict:
             row.get("id"),
             exc,
         )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to retrieve protected HR request data.",
@@ -151,6 +218,7 @@ def create_hr_request(
             profile["id"],
             exc,
         )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to process HR request.",
@@ -162,7 +230,32 @@ def create_hr_request(
             detail="HR request was not created.",
         )
 
-    return _decrypt_request_row(response.data[0])
+    created_request = _decrypt_request_row(
+        response.data[0]
+    )
+
+    # -----------------------------------------------------------------------
+    # Automatic HR email notification
+    # -----------------------------------------------------------------------
+
+    _send_hr_email(
+        subject=f"HR365 Request — {subject}",
+        body=(
+            "A new HR request has been submitted in HR365.\n\n"
+            f"Employee: {profile.get('full_name', 'Unknown')}\n"
+            f"Employee ID: {profile.get('employee_id', 'Unknown')}\n"
+            f"Department: {profile.get('department', 'Unknown')}\n"
+            f"Designation: {profile.get('designation', 'Unknown')}\n\n"
+            f"Category: {category}\n"
+            f"Priority: {priority}\n"
+            f"Status: open\n\n"
+            f"Subject:\n{subject}\n\n"
+            f"Description:\n{description}\n\n"
+            f"Request ID: {created_request.get('id', 'Unknown')}\n"
+        ),
+    )
+
+    return created_request
 
 
 @router.get("/me")
@@ -193,6 +286,7 @@ def get_my_hr_requests(
             profile["id"],
             exc,
         )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to retrieve HR requests.",
@@ -244,6 +338,7 @@ def get_all_hr_requests(
             employee_id,
             exc,
         )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to retrieve HR requests.",
@@ -269,7 +364,6 @@ def assign_hr_request(
     client = auth["client"]
 
     try:
-        # Verify that the assignee exists and is HR/admin.
         profile_response = (
             client.table("profiles")
             .select("id, role, is_active")
@@ -288,6 +382,7 @@ def assign_hr_request(
             request.assigned_to,
             exc,
         )
+
         raise HTTPException(
             status_code=404,
             detail="Assigned HR user not found.",
@@ -332,6 +427,7 @@ def assign_hr_request(
             request.assigned_to,
             exc,
         )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to assign HR request.",
@@ -387,6 +483,7 @@ def update_hr_request_status(
             request_id,
             exc,
         )
+
         raise HTTPException(
             status_code=404,
             detail="HR request not found.",
@@ -424,6 +521,7 @@ def update_hr_request_status(
             request_id,
             exc,
         )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to update HR request status.",
@@ -476,6 +574,7 @@ def escalate_hr_request(
             request_id,
             exc,
         )
+
         raise HTTPException(
             status_code=500,
             detail="Unable to escalate HR request.",

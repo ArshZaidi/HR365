@@ -23,6 +23,7 @@ import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 import { apiFetch } from "@/lib/api";
 import { getGreeting } from "@/lib/greeting";
 import { useProfile } from "@/hooks/useProfile";
+import AcademicCalendarCard from "@/components/dashboard/AcademicCalendarCard";
 
 interface DashboardData {
   attendance: number;
@@ -568,6 +569,8 @@ export default function DashboardPage() {
                     />
                   </div>
                 </section>
+                
+                <AcademicCalendarCard />
               </div>
             </>
           )}
