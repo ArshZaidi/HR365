@@ -1,12 +1,16 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
+
 import { useRouter } from "next/navigation";
+
 import Link from "next/link";
+
 import {
   ArrowRight,
   Briefcase,
   Building2,
+  ChevronDown,
   Eye,
   EyeOff,
   Loader2,
@@ -31,6 +35,128 @@ export default function SignupPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  /*
+   * Additional options for signup.
+   *
+   * We keep the existing values from @/lib/options and extend them
+   * here so this page remains compatible with the rest of the app.
+   */
+  const signupDepartments = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...DEPARTMENTS,
+
+          "Administration",
+          "Artificial Intelligence",
+          "Business Development",
+          "Corporate Communications",
+          "Customer Support",
+          "Customer Success",
+          "Data & Analytics",
+          "Design",
+          "Engineering",
+          "Finance",
+          "Human Resources",
+          "Information Technology",
+          "Legal & Compliance",
+          "Learning & Development",
+          "Marketing",
+          "Operations",
+          "Procurement",
+          "Product",
+          "Quality Assurance",
+          "Research & Development",
+          "Sales",
+          "Security",
+          "Software Development",
+        ]),
+      ).sort((a, b) => a.localeCompare(b)),
+    [],
+  );
+
+  const signupDesignations = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...DESIGNATIONS,
+
+          "Accountant",
+          "AI Engineer",
+          "Analyst",
+          "Apprentice",
+          "Associate",
+          "Associate Director",
+          "Assistant Manager",
+          "Backend Developer",
+          "Business Analyst",
+          "Business Development Executive",
+          "Business Development Manager",
+          "Chief Executive Officer",
+          "Chief Financial Officer",
+          "Chief Human Resources Officer",
+          "Chief Technology Officer",
+          "Compliance Officer",
+          "Customer Support Executive",
+          "Customer Support Specialist",
+          "Customer Success Manager",
+          "Data Engineer",
+          "Data Scientist",
+          "Deputy Manager",
+          "DevOps Engineer",
+          "Director",
+          "Executive",
+          "Finance Analyst",
+          "Finance Executive",
+          "Finance Manager",
+          "Frontend Developer",
+          "Full Stack Developer",
+          "HR Executive",
+          "HR Manager",
+          "HR Specialist",
+          "Intern",
+          "Legal Counsel",
+          "Legal Executive",
+          "Machine Learning Engineer",
+          "Manager",
+          "Marketing Executive",
+          "Marketing Manager",
+          "Marketing Specialist",
+          "Operations Executive",
+          "Operations Manager",
+          "Principal Software Engineer",
+          "Product Designer",
+          "Product Manager",
+          "Program Manager",
+          "Project Manager",
+          "QA Engineer",
+          "Recruiter",
+          "Sales Executive",
+          "Sales Manager",
+          "Sales Representative",
+          "Security Engineer",
+          "Senior Analyst",
+          "Senior Director",
+          "Senior Executive",
+          "Senior HR Manager",
+          "Senior Manager",
+          "Senior Product Manager",
+          "Senior Software Engineer",
+          "Senior Specialist",
+          "Senior Vice President",
+          "Software Engineer",
+          "Staff Software Engineer",
+          "Specialist",
+          "Trainee",
+          "Team Lead",
+          "Technical Lead",
+          "UI/UX Designer",
+          "Vice President",
+        ]),
+      ).sort((a, b) => a.localeCompare(b)),
+    [],
+  );
 
   async function handleSignup(event: FormEvent) {
     event.preventDefault();
@@ -70,6 +196,17 @@ export default function SignupPage() {
     "focus:bg-[var(--surface)]/80",
   ].join(" ");
 
+  const selectBase = [
+    "w-full appearance-none rounded-xl py-3 pr-10 pl-10 text-[14px]",
+    "border border-[var(--border)]",
+    "bg-[var(--surface)]/60 backdrop-blur-xl",
+    "text-[var(--foreground)] outline-none",
+    "transition-all duration-200 ease-[var(--ease-out-soft)]",
+    "focus:border-[var(--border-strong)]",
+    "focus:bg-[var(--surface)]/80",
+    "cursor-pointer",
+  ].join(" ");
+
   const labelBase =
     "mb-2 block text-[12px] font-semibold tracking-[0.08em] text-[var(--muted)] uppercase";
 
@@ -104,6 +241,7 @@ export default function SignupPage() {
             >
               H
             </span>
+
             <span className="font-display text-[18px] font-medium tracking-[-0.02em]">
               HR365
             </span>
@@ -121,19 +259,23 @@ export default function SignupPage() {
               <h1 className="font-display text-[1.75rem] leading-tight font-medium tracking-[-0.03em]">
                 Create account
               </h1>
+
               <p className="mt-2 text-[14px] text-[var(--muted)]">
                 Set up your HR365 workspace in under a minute.
               </p>
             </div>
 
             <form onSubmit={handleSignup} className="space-y-5">
+              {/* Full Name */}
               <div>
                 <label className={labelBase}>Full name</label>
+
                 <div className="relative">
                   <User
                     size={15}
                     className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--muted)]"
                   />
+
                   <input
                     required
                     value={fullName}
@@ -144,13 +286,16 @@ export default function SignupPage() {
                 </div>
               </div>
 
+              {/* Email */}
               <div>
                 <label className={labelBase}>Email</label>
+
                 <div className="relative">
                   <Mail
                     size={15}
                     className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--muted)]"
                   />
+
                   <input
                     type="email"
                     required
@@ -162,13 +307,16 @@ export default function SignupPage() {
                 </div>
               </div>
 
+              {/* Password */}
               <div>
                 <label className={labelBase}>Password</label>
+
                 <div className="relative">
                   <Lock
                     size={15}
                     className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--muted)]"
                   />
+
                   <input
                     type={showPassword ? "text" : "password"}
                     required
@@ -182,7 +330,9 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                     className="
                       absolute top-1/2 right-3 -translate-y-1/2
                       flex h-7 w-7 items-center justify-center rounded-lg
@@ -192,71 +342,98 @@ export default function SignupPage() {
                       hover:text-[var(--foreground)]
                     "
                   >
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    {showPassword ? (
+                      <EyeOff size={15} />
+                    ) : (
+                      <Eye size={15} />
+                    )}
                   </button>
                 </div>
+
                 <p className="mt-2 text-[11.5px] text-[var(--muted)]">
                   Minimum 6 characters.
                 </p>
               </div>
 
-              {/* Optional: work info */}
+              {/* Work Information */}
               <div className="border-t border-[var(--border)] pt-5">
                 <p className="mb-3 text-[11.5px] font-semibold tracking-[0.12em] text-[var(--muted)] uppercase">
                   Work info (optional)
                 </p>
 
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Designation */}
                   <div>
                     <label className={labelBase}>Designation</label>
+
                     <div className="relative">
                       <Briefcase
                         size={15}
-                        className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--muted)]"
+                        className="pointer-events-none absolute top-1/2 left-3.5 z-10 -translate-y-1/2 text-[var(--muted)]"
                       />
-                      <input
-                        list="signup-designation"
+
+                      <select
                         value={designation}
                         onChange={(e) => setDesignation(e.target.value)}
-                        placeholder="Software Engineer"
-                        className={inputBase}
-                      />
-                      <datalist id="signup-designation">
-                        {DESIGNATIONS.map((d) => (
-                          <option key={d} value={d} />
+                        className={selectBase}
+                        aria-label="Designation"
+                      >
+                        <option value="">Select designation</option>
+
+                        {signupDesignations.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
                         ))}
-                      </datalist>
+                      </select>
+
+                      <ChevronDown
+                        size={15}
+                        className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-[var(--muted)]"
+                      />
                     </div>
                   </div>
 
+                  {/* Department */}
                   <div>
                     <label className={labelBase}>Department</label>
+
                     <div className="relative">
                       <Building2
                         size={15}
-                        className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--muted)]"
+                        className="pointer-events-none absolute top-1/2 left-3.5 z-10 -translate-y-1/2 text-[var(--muted)]"
                       />
-                      <input
-                        list="signup-department"
+
+                      <select
                         value={department}
                         onChange={(e) => setDepartment(e.target.value)}
-                        placeholder="Engineering"
-                        className={inputBase}
-                      />
-                      <datalist id="signup-department">
-                        {DEPARTMENTS.map((d) => (
-                          <option key={d} value={d} />
+                        className={selectBase}
+                        aria-label="Department"
+                      >
+                        <option value="">Select department</option>
+
+                        {signupDepartments.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
                         ))}
-                      </datalist>
+                      </select>
+
+                      <ChevronDown
+                        size={15}
+                        className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-[var(--muted)]"
+                      />
                     </div>
                   </div>
                 </div>
 
                 <p className="mt-3 text-[11.5px] text-[var(--muted)]">
-                  You can update these anytime from Settings.
+                  Choose your department and designation from the available
+                  options.
                 </p>
               </div>
 
+              {/* Error */}
               {error && (
                 <div
                   className="rounded-xl border px-4 py-3 text-[13.5px] font-medium"
@@ -270,6 +447,7 @@ export default function SignupPage() {
                 </div>
               )}
 
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={loading}
@@ -292,6 +470,7 @@ export default function SignupPage() {
                 ) : (
                   <>
                     Create account
+
                     <ArrowRight
                       size={15}
                       className="transition-transform duration-300 ease-[var(--ease-out-soft)] group-hover:translate-x-0.5"
