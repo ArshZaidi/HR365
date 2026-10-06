@@ -130,18 +130,27 @@ LEAVE_TYPE_ALIASES = {
     "casual": "casual",
     "casual leave": "casual",
     "cl": "casual",
+
     "sick": "sick",
     "sick leave": "sick",
     "sl": "sick",
+
     "earned": "earned",
     "earned leave": "earned",
     "el": "earned",
+
     "annual": "annual",
     "annual leave": "annual",
     "vacation": "annual",
     "vacation leave": "annual",
+
     "other": "other",
     "other leave": "other",
+
+    # General leave is stored using HR365's canonical
+    # "other" leave type.
+    "general": "other",
+    "general leave": "other",
 }
 
 MONTHS = {
@@ -214,6 +223,7 @@ class LeaveActionExecuteRequest(BaseModel):
     end_date: date
     reason: str | None = None
     confirmed: bool = False
+    notify_hr: bool = True
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+
 import { apiFetch } from "@/lib/api";
+
 import {
   AskResponse,
   ChatMessage,
@@ -34,17 +36,18 @@ export interface LeavePreviewResponse {
 ================================================================ */
 
 /**
- * Only send messages to the leave-action endpoint when the user
- * is actually trying to perform a leave action.
+ * Detect an explicit leave action.
  *
- * This is deliberately conservative.
+ * Examples:
+ * - "I want to apply for leave"
+ * - "Apply for sick leave from October 10 to October 12"
+ * - "I need casual leave"
  *
- * Questions such as:
- *   "What is the leave policy?"
- *   "How many days of leave can I take?"
- *   "What is my leave status?"
+ * Policy questions such as:
+ * - "What is the leave policy?"
+ * - "Can I take leave?"
  *
- * must go through the normal HR assistant.
+ * continue through the normal HR assistant.
  */
 function looksLikeLeaveAction(text: string): boolean {
   const normalized = text
@@ -65,9 +68,6 @@ function looksLikeLeaveAction(text: string): boolean {
     return false;
   }
 
-  /*
-   * Explicit action phrases.
-   */
   const actionPatterns = [
     /\bapply\s+(for\s+)?/,
     /\brequest\s+(for\s+)?/,
@@ -82,23 +82,13 @@ function looksLikeLeaveAction(text: string): boolean {
   ];
 
   const hasActionVerb = actionPatterns.some(
-    (pattern) =>
-      pattern.test(normalized),
+    (pattern) => pattern.test(normalized),
   );
 
   if (!hasActionVerb) {
     return false;
   }
 
-  /*
-   * Questions should generally remain normal assistant queries.
-   *
-   * Example:
-   * "Can I take leave?"
-   *
-   * This is asking about eligibility/policy rather than clearly
-   * submitting a request.
-   */
   const isQuestion =
     /^(what|how|why|when|where|who|can|could|would|should|is|are|do|does|did)\b/.test(
       normalized,
@@ -116,6 +106,67 @@ function looksLikeLeaveAction(text: string): boolean {
   return true;
 }
 
+/**
+ * Detect a follow-up message belonging to an already active
+ * leave-application conversation.
+ *
+ * Examples:
+ * - "general leave"
+ * - "sick leave"
+ * - "10th to 12th October"
+ * - "October 10 to October 12"
+ * - "from 10th to 12th"
+ */
+function looksLikeLeaveFollowUp(text: string): boolean {
+  const normalized = text
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+
+  if (!normalized) {
+    return false;
+  }
+
+  const hasLeaveTerm =
+    /\b(leave|leaves|vacation|time off)\b/.test(
+      normalized,
+    );
+
+  const hasLeaveType =
+    /\b(casual|sick|earned|annual|vacation|other|general)\b/.test(
+      normalized,
+    );
+
+  const hasDateNumber =
+    /\b\d{1,2}(?:st|nd|rd|th)?\b/.test(
+      normalized,
+    );
+
+  const hasMonth =
+    /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/.test(
+      normalized,
+    );
+
+  const hasDateConnector =
+    /\b(from|to|until|through|between)\b/.test(
+      normalized,
+    );
+
+  const hasIsoDate =
+    /\b\d{4}-\d{1,2}-\d{1,2}\b/.test(
+      normalized,
+    );
+
+  return (
+    hasLeaveTerm ||
+    hasLeaveType ||
+    hasDateNumber ||
+    hasMonth ||
+    hasDateConnector ||
+    hasIsoDate
+  );
+}
+
 /* ================================================================
    HOOK
 ================================================================ */
@@ -130,10 +181,38 @@ export function useChat() {
   const [error, setError] =
     useState("");
 
+  /**
+   * A fully parsed leave request waiting for confirmation.
+   */
   const [pendingLeave, setPendingLeave] =
     useState<LeavePreviewResponse | null>(
       null,
     );
+
+  /**
+   * A partially collected leave request.
+   *
+   * Example:
+   *
+   * User:
+   *   "I want to apply for leave"
+   *
+   * leaveDraft:
+   *   "I want to apply for leave"
+   *
+   * User:
+   *   "general leave"
+   *
+   * leaveDraft:
+   *   "I want to apply for leave. general leave"
+   *
+   * User:
+   *   "10th to 12th October"
+   *
+   * The complete command is sent to the backend.
+   */
+  const [leaveDraft, setLeaveDraft] =
+    useState<string>("");
 
   /* ================================================================
      FRIENDLY ERROR
@@ -148,11 +227,6 @@ export function useChat() {
     ) {
       const message =
         value.message.toLowerCase();
-
-      /*
-       * Never expose raw infrastructure errors
-       * to the employee.
-       */
 
       if (
         message.includes("failed to fetch") ||
@@ -179,9 +253,6 @@ export function useChat() {
         return "HR365 is handling a high number of requests right now. Please try again shortly.";
       }
 
-      /*
-       * Avoid exposing backend implementation details.
-       */
       if (
         message.includes("internal server error") ||
         message.includes("server error")
@@ -189,9 +260,6 @@ export function useChat() {
         return "Something went wrong while processing your request. Please try again.";
       }
 
-      /*
-       * Keep legitimate user-facing API errors.
-       */
       return value.message;
     }
 
@@ -205,21 +273,31 @@ export function useChat() {
   async function sendMessage(
     question: string,
   ) {
-    const trimmed =
-      question.trim();
+    const trimmed = question.trim();
 
-    if (
-      !trimmed ||
-      loading
-    ) {
+    if (!trimmed || loading) {
       return;
     }
 
     setError("");
 
+    const hasActiveLeaveDraft =
+      Boolean(leaveDraft);
+
+    const isNewLeaveAction =
+      looksLikeLeaveAction(trimmed);
+
+    const isLeaveFollowUp =
+      hasActiveLeaveDraft &&
+      looksLikeLeaveFollowUp(trimmed);
+
     /*
-     * A new message cancels any previous leave
-     * confirmation state.
+     * A fully confirmed leave request is handled by the
+     * confirmation card, so a normal new message cancels
+     * any previous confirmation state.
+     *
+     * An INCOMPLETE leave draft is different:
+     * it must survive across multiple user messages.
      */
     setPendingLeave(null);
 
@@ -229,25 +307,41 @@ export function useChat() {
       content: trimmed,
     };
 
-    setMessages(
-      (current) => [
-        ...current,
-        userMessage,
-      ],
-    );
+    setMessages((current) => [
+      ...current,
+      userMessage,
+    ]);
 
     setLoading(true);
 
     try {
       /* ==========================================================
          1. LEAVE ACTION
-         ========================================================== */
+      ========================================================== */
 
       if (
-        looksLikeLeaveAction(
-          trimmed,
-        )
+        isNewLeaveAction ||
+        isLeaveFollowUp
       ) {
+        /*
+         * If this is a follow-up, combine it with the
+         * previously collected leave information.
+         *
+         * Example:
+         *
+         * "I want to apply for leave"
+         * +
+         * "general leave"
+         *
+         * becomes:
+         *
+         * "I want to apply for leave. general leave"
+         */
+        const leaveCommand =
+          hasActiveLeaveDraft
+            ? `${leaveDraft}. ${trimmed}`
+            : trimmed;
+
         let leavePreview:
           | LeavePreviewResponse
           | null = null;
@@ -259,35 +353,38 @@ export function useChat() {
               {
                 method: "POST",
                 body: JSON.stringify({
-                  command: trimmed,
+                  command: leaveCommand,
                 }),
               },
             );
         } catch (previewError) {
-          /*
-           * A leave-action parsing failure should not break
-           * the entire assistant.
-           *
-           * Fall through to normal /api/ask.
-           */
           console.warn(
             "Leave action preview failed:",
             previewError,
           );
 
+          /*
+           * Do not keep a stale draft if the leave
+           * endpoint itself failed.
+           */
+          setLeaveDraft("");
+
           leavePreview = null;
         }
 
-        if (
-          leavePreview?.matched
-        ) {
+        if (leavePreview?.matched) {
           /*
-           * Backend needs more information.
+           * Backend still needs information.
+           *
+           * Keep the entire conversation collected so far
+           * as the draft.
            */
           if (
             !leavePreview.ready ||
             !leavePreview.payload
           ) {
+            setLeaveDraft(leaveCommand);
+
             const assistantMessage: ChatMessage = {
               id: crypto.randomUUID(),
               role: "assistant",
@@ -296,19 +393,22 @@ export function useChat() {
                 "I need a few more details before I can prepare the leave request.",
             };
 
-            setMessages(
-              (current) => [
-                ...current,
-                assistantMessage,
-              ],
-            );
+            setMessages((current) => [
+              ...current,
+              assistantMessage,
+            ]);
 
             return;
           }
 
           /*
-           * Ready for explicit confirmation.
+           * Everything is available.
+           *
+           * Now move the request into the confirmation
+           * state and clear the temporary draft.
            */
+          setLeaveDraft("");
+
           setPendingLeave(
             leavePreview,
           );
@@ -328,20 +428,29 @@ export function useChat() {
               leavePreview as unknown as AskResponse,
           };
 
-          setMessages(
-            (current) => [
-              ...current,
-              assistantMessage,
-            ],
-          );
+          setMessages((current) => [
+            ...current,
+            assistantMessage,
+          ]);
 
           return;
+        }
+
+        /*
+         * If this was an attempted leave conversation but the
+         * backend did not recognize it, don't leave stale state.
+         */
+        if (
+          isLeaveFollowUp ||
+          isNewLeaveAction
+        ) {
+          setLeaveDraft("");
         }
       }
 
       /* ==========================================================
          2. NORMAL HR365 ASSISTANT
-         ========================================================== */
+      ========================================================== */
 
       const response =
         await apiFetch<AskResponse>(
@@ -354,11 +463,6 @@ export function useChat() {
           },
         );
 
-      /*
-       * Always render only the answer as the main assistant
-       * content. Metadata stays attached to the message object
-       * for optional UI components.
-       */
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -366,34 +470,26 @@ export function useChat() {
         response,
       };
 
-      setMessages(
-        (current) => [
-          ...current,
-          assistantMessage,
-        ],
-      );
+      setMessages((current) => [
+        ...current,
+        assistantMessage,
+      ]);
     } catch (err) {
       const friendly =
         buildFriendlyError(err);
 
       setError("");
 
-      /*
-       * Render the error as a proper assistant message
-       * rather than a raw red error box.
-       */
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
         content: friendly,
       };
 
-      setMessages(
-        (current) => [
-          ...current,
-          assistantMessage,
-        ],
-      );
+      setMessages((current) => [
+        ...current,
+        assistantMessage,
+      ]);
     } finally {
       setLoading(false);
     }
@@ -404,9 +500,7 @@ export function useChat() {
   ================================================================ */
 
   async function confirmLeave() {
-    if (
-      !pendingLeave?.payload
-    ) {
+    if (!pendingLeave?.payload) {
       return;
     }
 
@@ -441,6 +535,8 @@ export function useChat() {
                 payload.reason ?? null,
 
               confirmed: true,
+
+              notify_hr: true,
             }),
           },
         );
@@ -453,14 +549,13 @@ export function useChat() {
           "Your leave request has been submitted successfully.",
       };
 
-      setMessages(
-        (current) => [
-          ...current,
-          assistantMessage,
-        ],
-      );
+      setMessages((current) => [
+        ...current,
+        assistantMessage,
+      ]);
 
       setPendingLeave(null);
+      setLeaveDraft("");
     } catch (err) {
       const friendly =
         buildFriendlyError(err);
@@ -471,12 +566,10 @@ export function useChat() {
         content: friendly,
       };
 
-      setMessages(
-        (current) => [
-          ...current,
-          assistantMessage,
-        ],
-      );
+      setMessages((current) => [
+        ...current,
+        assistantMessage,
+      ]);
     } finally {
       setLoading(false);
     }
@@ -492,6 +585,7 @@ export function useChat() {
     }
 
     setPendingLeave(null);
+    setLeaveDraft("");
 
     const assistantMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -500,12 +594,10 @@ export function useChat() {
         "No problem — I cancelled the leave application.",
     };
 
-    setMessages(
-      (current) => [
-        ...current,
-        assistantMessage,
-      ],
-    );
+    setMessages((current) => [
+      ...current,
+      assistantMessage,
+    ]);
   }
 
   /* ================================================================
@@ -516,6 +608,7 @@ export function useChat() {
     setMessages([]);
     setError("");
     setPendingLeave(null);
+    setLeaveDraft("");
   }
 
   return {
@@ -634,16 +727,15 @@ function formatLeaveType(
     sick: "Sick Leave",
     earned: "Earned Leave",
     annual: "Annual Leave",
-    other: "Other Leave",
+    other: "General / Other Leave",
   };
 
   return (
     labels[value] ||
-    value
-      .replace(
-        /\b\w/g,
-        (char) =>
-          char.toUpperCase(),
-      )
+    value.replace(
+      /\b\w/g,
+      (char) =>
+        char.toUpperCase(),
+    )
   );
 }
