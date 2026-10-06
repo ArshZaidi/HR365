@@ -1,33 +1,39 @@
 "use client";
 
 import {
-  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
   FileText,
   LockKeyhole,
   Sparkles,
 } from "lucide-react";
+
 import {
-  AnimatePresence,
   motion,
   useMotionValue,
   useSpring,
   useTransform,
 } from "framer-motion";
-import { useEffect, useState } from "react";
+
+import {
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+
 import { useRouter } from "next/navigation";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:8000";
 
+const MIN_ONBOARDING_TIME = 2200;
+
 export default function OnboardingScreen() {
   const router = useRouter();
 
-  const [entering, setEntering] = useState(false);
   const [backendReady, setBackendReady] = useState(false);
-  const [showStatus, setShowStatus] = useState(false);
+  const [fadingOut, setFadingOut] = useState(false);
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -42,8 +48,23 @@ export default function OnboardingScreen() {
     damping: 20,
   });
 
-  const orbX = useTransform(smoothX, [-500, 500], [-35, 35]);
-  const orbY = useTransform(smoothY, [-500, 500], [-35, 35]);
+  const orbX = useTransform(
+    smoothX,
+    [-500, 500],
+    [-35, 35]
+  );
+
+  const orbY = useTransform(
+    smoothY,
+    [-500, 500],
+    [-35, 35]
+  );
+
+  /*
+   * ---------------------------------------------------------
+   * MOUSE PARALLAX
+   * ---------------------------------------------------------
+   */
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -70,48 +91,80 @@ export default function OnboardingScreen() {
   }, [mouseX, mouseY]);
 
   /*
-   * Warm Render silently in the background.
-   * The user never sees the old loading screen.
+   * ---------------------------------------------------------
+   * AUTOMATIC BACKEND WAKE-UP
+   *
+   * The onboarding screen appears immediately.
+   * We silently poll Render until /health responds.
+   *
+   * Once the backend is ready:
+   *
+   *   backendReady
+   *        ↓
+   *   "Workspace ready"
+   *        ↓
+   *   fade + blur
+   *        ↓
+   *   dashboard
+   *
+   * There is intentionally NO ENTER button.
+   * ---------------------------------------------------------
    */
+
   useEffect(() => {
     let cancelled = false;
 
-    const wakeBackend = async () => {
-      try {
-        const response = await fetch(
-          `${API_URL}/health`,
-          {
-            cache: "no-store",
-          }
-        );
+    let pollingTimer: ReturnType<typeof setTimeout> | null =
+      null;
 
-        if (!cancelled && response.ok) {
-          setBackendReady(true);
-        }
-      } catch {
-        if (!cancelled) {
-          setBackendReady(false);
-        }
-      }
+    let transitionTimer: ReturnType<typeof setTimeout> | null =
+      null;
+
+    let routeTimer: ReturnType<typeof setTimeout> | null =
+      null;
+
+    const startedAt = Date.now();
+
+    const transitionToDashboard = () => {
+      if (cancelled) return;
+
+      const elapsed = Date.now() - startedAt;
+
+      /*
+       * Make sure the beautiful onboarding animation gets
+       * enough time to play even when the backend is already
+       * awake.
+       */
+      const remainingTime = Math.max(
+        0,
+        MIN_ONBOARDING_TIME - elapsed
+      );
+
+      transitionTimer = setTimeout(() => {
+        if (cancelled) return;
+
+        setFadingOut(true);
+
+        /*
+         * Allow the fade/blur animation to complete before
+         * changing routes.
+         */
+        routeTimer = setTimeout(() => {
+          if (cancelled) return;
+
+          localStorage.setItem(
+            "hr365_onboarding_complete",
+            "true"
+          );
+
+          router.replace("/dashboard");
+        }, 800);
+      }, remainingTime);
     };
 
-    wakeBackend();
+    const checkBackend = async () => {
+      if (cancelled) return;
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const waitForBackend = async () => {
-    if (backendReady) {
-      return true;
-    }
-
-    setShowStatus(true);
-
-    const timeout = Date.now() + 50000;
-
-    while (Date.now() < timeout) {
       try {
         const response = await fetch(
           `${API_URL}/health`,
@@ -121,57 +174,74 @@ export default function OnboardingScreen() {
         );
 
         if (response.ok) {
+          if (cancelled) return;
+
           setBackendReady(true);
-          return true;
+
+          transitionToDashboard();
+
+          return;
         }
       } catch {
-        // Render may still be waking.
+        /*
+         * Render may still be waking up.
+         * Keep polling silently.
+         */
       }
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1500)
-      );
-    }
+      if (!cancelled) {
+        pollingTimer = setTimeout(
+          checkBackend,
+          1500
+        );
+      }
+    };
 
-    return false;
-  };
+    checkBackend();
 
-  const handleEnter = async () => {
-    if (entering) return;
+    return () => {
+      cancelled = true;
 
-    setEntering(true);
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+      }
 
-    const ready = await waitForBackend();
+      if (transitionTimer) {
+        clearTimeout(transitionTimer);
+      }
 
-    /*
-     * Even if the backend takes too long, enter the application.
-     * The dashboard/API layer can handle the eventual wake-up.
-     */
-    if (!ready) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, 300)
-      );
-    }
+      if (routeTimer) {
+        clearTimeout(routeTimer);
+      }
+    };
+  }, [router]);
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem(
-        "hr365_onboarding_complete",
-        "true"
-      );
-    }
-
-    router.push("/dashboard");
-  };
+  /*
+   * ---------------------------------------------------------
+   * RENDER
+   * ---------------------------------------------------------
+   */
 
   return (
     <motion.main
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{
+      initial={{
         opacity: 0,
-        scale: 1.04,
-        filter: "blur(12px)",
+        scale: 1.02,
+        filter: "blur(8px)",
       }}
+      animate={
+        fadingOut
+          ? {
+              opacity: 0,
+              scale: 1.04,
+              filter: "blur(12px)",
+            }
+          : {
+              opacity: 1,
+              scale: 1,
+              filter: "blur(0px)",
+            }
+      }
       transition={{
         duration: 0.8,
         ease: [0.22, 1, 0.36, 1],
@@ -354,6 +424,10 @@ export default function OnboardingScreen() {
           YOUR INTELLIGENT HR WORKSPACE
         </motion.div>
 
+        {/* ======================================================= */}
+        {/* TITLE */}
+        {/* ======================================================= */}
+
         <div className="onboarding-title-wrap">
           <motion.h1
             initial={{
@@ -400,6 +474,10 @@ export default function OnboardingScreen() {
             ✦
           </motion.div>
         </div>
+
+        {/* ======================================================= */}
+        {/* DESCRIPTION */}
+        {/* ======================================================= */}
 
         <motion.p
           initial={{
@@ -466,7 +544,7 @@ export default function OnboardingScreen() {
         </motion.div>
 
         {/* ======================================================= */}
-        {/* CTA */}
+        {/* AUTOMATIC BACKEND STATUS */}
         {/* ======================================================= */}
 
         <motion.div
@@ -484,78 +562,37 @@ export default function OnboardingScreen() {
           }}
           className="onboarding-action"
         >
-          <motion.button
-            type="button"
-            onClick={handleEnter}
-            disabled={entering}
-            whileHover={{
-              scale: 1.035,
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 8,
             }}
-            whileTap={{
-              scale: 0.97,
+            animate={{
+              opacity: 1,
+              y: 0,
             }}
-            className="onboarding-button"
+            transition={{
+              delay: 1.55,
+              duration: 0.6,
+            }}
+            className="onboarding-status"
           >
-            <span>
-              {entering
-                ? "Preparing your workspace"
-                : "Enter HR365"}
-            </span>
+            <span
+              className="onboarding-status-dot"
+              style={{
+                opacity: backendReady ? 1 : 0.45,
+              }}
+            />
 
-            <motion.span
-              animate={
-                entering
-                  ? {
-                      rotate: 360,
-                    }
-                  : {
-                      x: [0, 5, 0],
-                    }
-              }
-              transition={
-                entering
-                  ? {
-                      duration: 1,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }
-                  : {
-                      duration: 1.8,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }
-              }
-            >
-              {entering ? (
-                <span className="onboarding-spinner" />
-              ) : (
-                <ArrowUpRight size={19} />
-              )}
-            </motion.span>
-          </motion.button>
-
-          <AnimatePresence>
-            {showStatus && (
-              <motion.div
-                initial={{
-                  opacity: 0,
-                  y: -8,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                exit={{
-                  opacity: 0,
-                }}
-                className="onboarding-status"
-              >
-                <span className="onboarding-status-dot" />
-                Preparing your workspace in the background
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {backendReady
+              ? "Workspace ready"
+              : "Connecting to your workspace…"}
+          </motion.div>
         </motion.div>
+
+        {/* ======================================================= */}
+        {/* FOOTNOTE */}
+        {/* ======================================================= */}
 
         <motion.div
           initial={{
@@ -569,7 +606,8 @@ export default function OnboardingScreen() {
           }}
           className="onboarding-footnote"
         >
-          HR365 <span>•</span> Built for people, powered by intelligence
+          HR365 <span>•</span> Built for people, powered by
+          intelligence
         </motion.div>
       </section>
 
@@ -595,12 +633,18 @@ export default function OnboardingScreen() {
   );
 }
 
+/*
+ * =============================================================
+ * FEATURE CARD
+ * =============================================================
+ */
+
 function Feature({
   icon,
   title,
   text,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   text: string;
 }) {
