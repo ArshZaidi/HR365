@@ -20,7 +20,7 @@ class ConfidenceEngine:
     """
 
     HIGH_THRESHOLD = 0.80
-    MEDIUM_THRESHOLD = 0.60
+    MEDIUM_THRESHOLD = 0.50
     RELEVANCE_THRESHOLD = 0.60
     TARGET_EVIDENCE_COUNT = 2
 

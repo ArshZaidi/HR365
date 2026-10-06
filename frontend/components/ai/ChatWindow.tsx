@@ -557,7 +557,7 @@ export default function ChatWindow() {
               </span>
 
               <span className="hidden text-[11px] text-[var(--muted)] sm:inline">
-                HR365 AI
+                HR365 AI can make mistakes. Always verify important information.
               </span>
             </div>
           </form>
