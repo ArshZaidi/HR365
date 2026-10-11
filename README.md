@@ -1,1118 +1,347 @@
-# HR365
-
-### AI-Powered Human Resource Management Platform
-
-> **A secure, intelligent HR platform that combines an AI workplace assistant, policy-aware RAG, employee self-service, HR workflows, task management, and company notices — all in one system.**
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" />
-  <img src="https://img.shields.io/badge/FastAPI-Python-009688?style=for-the-badge&logo=fastapi" />
-  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase" />
-  <img src="https://img.shields.io/badge/FAISS-RAG-FF6B35?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Sentence_Transformers-Embeddings-blue?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Groq-LLM-orange?style=for-the-badge" />
-</p>
-
-<p align="center">
-  <strong>Ask. Understand. Act.</strong>
-</p>
-
----
-
-## ✨ Overview
-
-**HR365** is an AI-first Human Resource Management System designed to make everyday HR operations faster, more accessible, and more intelligent.
-
-Instead of forcing employees to navigate multiple HR screens, policies, and workflows, HR365 provides an **AI workplace assistant** capable of understanding natural-language requests and connecting them to the underlying HR system.
-
-Employees can ask questions such as:
-
-```text
-"What is my attendance percentage?"
-
-"How many days have I been absent?"
-
-"What is the remote work policy?"
-
-"Show me my leave requests."
-
-"Apply leave from October 7 to October 9."
-
-"Create an HR request regarding payroll."
-```
-
-HR365 determines what the employee is asking, retrieves the appropriate company policy or authenticated employee data, and responds using the correct source.
-
-For supported operations, the assistant can also act as a **natural-language command layer over the HRMS**, allowing employees to interact with workflows conversationally.
-
----
-
-# 🚀 Why HR365?
-
-Traditional HR systems often separate:
-
-* HR policies
-* Employee information
-* Attendance
-* Leave management
-* HR support
-* Company announcements
-* Tasks
-* Notifications
-
-HR365 brings these capabilities together around a single intelligent interface.
-
-### The core idea
-
-```text
-                 ┌──────────────────────┐
-                 │      Employee        │
-                 └──────────┬───────────┘
-                            │
-                     Natural Language
-                            │
-                            ▼
-                 ┌──────────────────────┐
-                 │   AI HR Assistant    │
-                 └──────────┬───────────┘
-                            │
-                 ┌──────────┴──────────┐
-                 │                     │
-                 ▼                     ▼
-          Company Knowledge      Employee Data
-               RAG                 Supabase
-                 │                     │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌──────────────────────┐
-                 │ HR365 Action Layer   │
-                 └──────────┬───────────┘
-                            │
-          ┌─────────────────┼─────────────────┐
-          ▼                 ▼                 ▼
-       Leave             Requests          Tasks
-     Management         & Tickets       & Workflows
-```
-
----
-
-# 🎯 Features
-
-## 🤖 AI HR Assistant
-
-A conversational interface for interacting with HR365 using natural language.
-
-The assistant can:
-
-* Answer HR policy questions
-* Retrieve authenticated employee information
-* Explain attendance records
-* Retrieve leave information
-* Retrieve HR request information
-* Combine employee-specific information with company policies
-* Detect unsupported questions
-* Escalate low-confidence HR questions
-* Trigger supported HR workflows
-
----
-
-## 🧠 Retrieval-Augmented Generation
-
-HR365 uses a custom **Retrieval-Augmented Generation (RAG)** pipeline to ground policy-related answers in the organization's knowledge base.
-
-### Pipeline
-
-```text
-User Question
-      │
-      ▼
-Query Classification
-      │
-      ├──────────────► Personal Data
-      │                    │
-      │                    ▼
-      │                Supabase
-      │
-      └──────────────► Company Policy
-                           │
-                           ▼
-                       Retriever
-                           │
-                           ▼
-                       FAISS
-                           │
-                           ▼
-                  Semantic Retrieval
-                           │
-                           ▼
-                    Lexical Reranking
-                           │
-                           ▼
-                  Confidence Engine
-                           │
-                           ▼
-                         LLM
-                           │
-                           ▼
-                    Grounded Answer
-```
-
-### Retrieval Stack
-
-* **Sentence Transformers** — semantic embeddings
-* **FAISS** — vector similarity search
-* **Custom lexical reranker** — contextual relevance
-* **Confidence Engine** — evidence quality assessment
-* **Groq** — LLM inference
-* **Custom RAG pipeline** — no LangChain dependency
-
----
-
-# 📚 Knowledge Base
-
-HR365 uses a curated company knowledge base covering:
-
-| Document                     | Purpose                           |
-| ---------------------------- | --------------------------------- |
-| Employee Handbook            | General employee guidelines       |
-| Attendance Policy            | Attendance and working-hour rules |
-| Leave Policy                 | Leave rules and procedures        |
-| Remote Work Policy           | Work-from-home guidelines         |
-| Code of Conduct              | Workplace conduct                 |
-| Benefits Policy              | Employee benefits                 |
-| Payroll Policy               | Payroll-related policies          |
-| IT Security Policy           | Security and access guidelines    |
-| HR FAQ                       | Frequently asked HR questions     |
-| Workplace Safety & Grievance | Safety and grievance procedures   |
-| Company Notices              | Company-wide announcements        |
-
-Employee-specific information is **not stored in the RAG knowledge base**.
-
-Instead:
-
-```text
-Company-wide information
-        ↓
-       RAG
-
-Employee-specific information
-        ↓
-Authenticated Supabase queries
-```
-
-This separation improves relevance and data isolation.
-
----
-
-# 🎯 Intelligent Query Routing
-
-HR365 classifies incoming questions before deciding how they should be handled.
-
-| Route          | Purpose                               |
-| -------------- | ------------------------------------- |
-| `chitchat`     | Greetings and conversational messages |
-| `personal`     | Employee-specific information         |
-| `policy`       | Company policies and procedures       |
-| `hybrid`       | Employee data + company policy        |
-| `action`       | HR workflow operations                |
-| `out_of_scope` | Unsupported/non-HR questions          |
-
-### Example
-
-```text
-"What is the remote work policy?"
-              ↓
-           POLICY
-              ↓
-             RAG
-```
-
-```text
-"What is my attendance percentage?"
-              ↓
-          PERSONAL
-              ↓
-         Supabase
-```
-
-```text
-"Can I work remotely while I am on probation?"
-              ↓
-           HYBRID
-              ↓
-   Employee Context + RAG
-```
-
-This prevents every question from being treated as a generic LLM prompt.
-
----
-
-# 📊 Confidence Engine
-
-HR365 does not blindly trust every retrieved result.
-
-The Confidence Engine evaluates:
-
-* Top semantic similarity
-* Mean similarity
-* Relevant evidence count
-* Evidence quality
-
-### Confidence model
-
-```text
-Confidence =
-    70% × Top Similarity
-  + 20% × Mean Similarity
-  + 10% × Evidence Score
-```
-
-Responses are classified as:
-
-```text
-HIGH
-MEDIUM
-LOW
-```
-
-Low-confidence HR questions can trigger escalation to human HR support.
-
----
-
-# 🚨 Intelligent HR Escalation
-
-When the system cannot confidently answer an HR question, HR365 can automatically create an HR ticket.
-
-```text
-Employee Question
-       │
-       ▼
-     RAG
-       │
-       ▼
-Low Confidence
-       │
-       ▼
-Automatic Escalation
-       │
-       ▼
-   HR Request
-       │
-       ▼
-      HR Team
-```
-
-Requests can contain:
-
-* Category
-* Priority
-* Escalation status
-* Escalation reason
-* Employee information
-* Request metadata
-
-This creates a reliable fallback path from **AI → Human HR support**.
-
----
-
-# 🧑‍💼 Employee Self-Service
-
-Employees can access their own HR information through authenticated APIs.
-
-### Attendance
-
-* Attendance records
-* Present days
-* Absent days
-* Half-days
-* Working hours
-* Attendance percentage
-
-### Leave
-
-* Leave requests
-* Leave status
-* Leave history
-* Leave summaries
-* Leave applications
-
-### HR Requests
-
-* Create requests
-* View requests
-* Track status
-* View escalations
-
-The AI assistant can expose these capabilities through natural language.
-
----
-
-# 📝 Natural-Language Leave Management
-
-Employees can initiate leave applications conversationally.
-
-Example:
-
-```text
-Employee:
-Apply leave from October 7 to October 9.
-```
-
-HR365 extracts the required information and generates a confirmation preview before creating the request.
-
-```text
-┌─────────────────────────────────────┐
-│       Leave Application             │
-│                                     │
-│  Type: Casual Leave                 │
-│  From: 7 October 2026               │
-│  To:   9 October 2026               │
-│  Days: 3                            │
-│                                     │
-│  Confirm application?               │
-└─────────────────────────────────────┘
-```
-
-This reduces accidental submissions while keeping the experience conversational.
-
----
-
-# 📋 HR Request Management
-
-HR365 provides an HR support workflow with:
-
-### Categories
-
-* Payroll
-* Leave
-* Attendance
-* IT
-* General
-* Policy
-* Other
-
-### Priorities
-
-* Low
-* Normal
-* High
-* Urgent
-
-### Workflow
-
-```text
-OPEN
-  │
-  ▼
-ASSIGNED
-  │
-  ▼
-IN PROGRESS
-  │
-  ▼
-RESOLVED
-```
-
-Requests can also be escalated manually or automatically.
-
----
-
-# 🔔 Company Notices
-
-HR365 includes a company-wide notice and notification system.
-
-Employees can receive:
-
-* Company announcements
-* Policy updates
-* Important alerts
-* Payroll notices
-* Events
-* Urgent communications
-
-Notices support:
-
-* Priority
-* Category
-* Published date
-* Expiry date
-* Read/unread state
-* Individual read tracking
-* HR/Admin management
-
-### Notification flow
-
-```text
-HR/Admin
+HR365 — AI-Powered Human Resource Management Platform
+LLM-powered RAG architecture with vector embeddings, FAISS retrieval, confidence scoring, and grounded HR intelligence.
+HR365 is an AI-first Human Resource Management System that brings employee self-service and everyday HR workflows behind a conversational interface. It combines a custom Retrieval-Augmented Generation (RAG) pipeline for company knowledge with authenticated database access for employee-specific information—so policy answers and personal HR data follow different, purpose-built paths.
+￼ ￼ ￼ ￼ ￼ 
+
+Ask. Understand. Act.
+
+Contents
+Why HR365?
+Core capabilities
+How the AI assistant works
+Architecture
+Technology stack
+Repository layout
+Getting started
+Environment configuration
+API overview
+Security design
+Evaluation and testing
+Current scope
+Roadmap
+Contributing
+Author
+Why HR365?
+HR tools often make employees jump between policy documents, attendance pages, leave forms, support tickets, and company announcements. HR365 aims to make those interactions simpler: employees can ask a question in natural language, retrieve information they are authorized to see, and use supported workflows without having to know which screen or endpoint to open.
+Example prompts:
+“What is the remote-work policy?”
+“What is my attendance summary?”
+“Show me the status of my leave requests.”
+“Can I work remotely while I am on probation?”
+“Help me raise an HR request about payroll.”
+“Apply for leave from October 7 to October 9.”
+The assistant routes each request to the relevant source or workflow instead of treating every prompt as a generic LLM question.
+Core capabilities
+AI workplace assistant
+Natural-language HR question answering.
+Query routing for policy, personal-data, hybrid, action, and out-of-scope requests.
+Answers grounded in retrieved company knowledge or authenticated employee data.
+Confidence-aware handling for questions with insufficient evidence.
+Escalation paths for HR questions that need human attention.
+Confirmation-oriented flows for supported state-changing actions.
+Custom RAG pipeline
+Document ingestion and text processing.
+Sentence-transformer-based semantic embeddings.
+FAISS vector similarity retrieval.
+Lexical reranking to improve candidate relevance.
+Confidence scoring based on retrieved evidence.
+LLM response generation through Groq.
+Evidence-grounded responses and out-of-knowledge-base handling.
+Employee self-service
+Attendance records and summaries.
+Leave requests, history, and status.
+HR support requests and escalation tracking.
+Employee-specific information retrieved through authenticated backend access.
+HR workflows and communications
+Leave application preview and confirmation flows.
+HR request creation, tracking, and escalation.
+Company notices with read/unread tracking.
+Role-aware HR and administrative operations.
+Task reassignment support based on relevant employee and workload context.
+Important: Available features depend on the current configuration, database schema, credentials, and deployed version. This repository is a software project/demo, not a certified or production-ready HRIS replacement.
+How the AI assistant works
+HR365 separates company-wide knowledge from private employee information.
+Request type
+Processing path
+Source of truth
+Company policy
+Retrieve → rerank → score evidence → generate answer
+HR knowledge base
+Personal HR data
+Authenticate → authorize → query
+Supabase/PostgreSQL
+Policy + employee context
+Retrieve authorized context and policy evidence
+Database + knowledge base
+Supported HR action
+Classify intent → validate details → preview/confirm → execute
+HR workflow API
+Unsupported or uncertain question
+Detect insufficient scope/evidence → respond safely or escalate
+Confidence and escalation logic
+RAG flow
+Question
    │
    ▼
-Publish Notice
+Query classification
    │
-   ▼
-Employee Notice Feed
+   ├── Personal data ──► Authenticated database query
    │
-   ├──► Notice Bell
+   ├── HR action ──────► Validated workflow
    │
-   ├──► Notification Toast
-   │
-   └──► Read/Unread Tracking
-```
-
----
-
-# 🧩 Task Management & Reassignment
-
-HR365 supports intelligent task reassignment.
-
-When an employee becomes unavailable, the system can consider:
-
-* Employee role
-* Department
-* Active status
-* Approved leave
-* Current workload
-* Task requirements
-
-The system can identify suitable employees while maintaining an assignment history.
-
-```text
-Employee Unavailable
-        │
-        ▼
-Find Eligible Employees
-        │
-        ├── Role
-        ├── Department
-        ├── Leave Status
-        └── Workload
-        │
-        ▼
-Select Suitable Candidate
-        │
-        ▼
-Reassign Task
-        │
-        ▼
-Record Assignment History
-```
-
----
-
-# 🔐 Security
-
-Security is a core part of HR365 because HR systems handle sensitive employee information.
-
-## Authentication
-
-HR365 uses:
-
-* Supabase Authentication
-* JWT-based authentication
-* Authenticated API requests
-
----
-
-## Role-Based Access Control
-
-Three roles are supported:
-
-```text
-EMPLOYEE
-   │
-   ├── Own profile
-   ├── Own attendance
-   ├── Own leaves
-   └── Own HR requests
-
-HR
-   │
-   ├── Employee support
-   ├── HR requests
-   ├── Leave management
-   ├── Notices
-   └── HR workflows
-
-ADMIN
-   │
-   └── Administrative capabilities
-```
-
----
-
-## Row-Level Security
-
-Supabase PostgreSQL Row-Level Security protects database access.
-
-The backend attaches the authenticated user's JWT to database requests so queries operate under the user's authorization context.
-
-```text
+   └── Policy question
+            │
+            ▼
+       Text embeddings
+            │
+            ▼
+        FAISS search
+            │
+            ▼
+       Lexical reranking
+            │
+            ▼
+       Confidence scoring
+            │
+            ▼
+      Groq LLM inference
+            │
+            ▼
+   Grounded answer / escalation
+Confidence-aware answers
+The retrieval pipeline evaluates evidence quality before generating or accepting an answer. Confidence is categorized as high, medium, or low; low-confidence results can be handled through an escalation path rather than presenting an unsupported answer as fact.
+Why not put all HR data into the vector index?
+Company policies and personal employee records have different access and freshness requirements. HR365 is designed to use RAG for shared organizational knowledge and authenticated database queries for employee-specific information. This helps avoid treating private, changing records as static knowledge-base documents.
+Architecture
+┌──────────────────────────┐
+│       Next.js UI         │
+│ Assistant · Dashboard    │
+│ Attendance · Leave       │
+│ HR requests · Notices    │
+└────────────┬─────────────┘
+             │ REST + auth
+             ▼
+┌──────────────────────────┐
+│        FastAPI           │
+│ Auth · Authorization     │
+│ HR APIs · Query routing  │
+│ Assistant action layer   │
+└───────────┬──────────────┘
+            │
+      ┌─────┴──────────┐
+      ▼                ▼
+┌──────────────┐  ┌─────────────────┐
+│ AI / RAG     │  │ Supabase        │
+│ Embeddings   │  │ PostgreSQL      │
+│ FAISS        │  │ Auth / RLS      │
+│ Reranking    │  │ HR records      │
+│ Confidence   │  └─────────────────┘
+│ Groq         │
+└──────────────┘
+Technology stack
+Layer
+Technologies
 Frontend
-   ↓
-JWT
-   ↓
-FastAPI
-   ↓
-Authenticated Supabase Client
-   ↓
-PostgreSQL RLS
-```
-
----
-
-# 🔒 AES-256-GCM Encryption
-
-Sensitive HR request content is encrypted using **AES-256-GCM**.
-
-Currently protected fields include:
-
-* HR request subject
-* HR request description
-
-AES-256-GCM provides:
-
-* Confidentiality
-* Authentication
-* Integrity protection
-* Tamper detection
-
-> **Note:** HR365 uses application/data-layer encryption. It is not true end-to-end encryption because the backend possesses the encryption key.
-
----
-
-# 🛡️ API Security
-
-Additional security measures include:
-
-* JWT validation
-* Role-based authorization
-* PostgreSQL RLS
-* CORS restrictions
-* Generic API error responses
-* Server-side logging
-* Environment-based secrets
-* Hidden development authentication test routes
-* Input validation
-* Protected HR endpoints
-
----
-
-# 🏗️ Architecture
-
-```text
-                         ┌──────────────────────┐
-                         │      Next.js UI      │
-                         │                      │
-                         │  Dashboard           │
-                         │  AI Assistant        │
-                         │  Attendance          │
-                         │  Leaves              │
-                         │  HR Requests         │
-                         │  Notices             │
-                         │  HR Management       │
-                         └──────────┬───────────┘
-                                    │
-                              REST / JWT
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │      FastAPI         │
-                         │                      │
-                         │ Authentication       │
-                         │ RBAC                 │
-                         │ HR APIs              │
-                         │ AI Assistant         │
-                         │ Action Layer         │
-                         └───────┬───────┬──────┘
-                                 │       │
-                 ┌───────────────┘       └───────────────┐
-                 ▼                                       ▼
-       ┌────────────────────┐                  ┌────────────────────┐
-       │    AI / RAG        │                  │     Supabase       │
-       │                    │                  │                    │
-       │ SentenceTransform. │                  │ PostgreSQL         │
-       │ FAISS              │                  │ Authentication     │
-       │ Reranker           │                  │ Row Level Security │
-       │ Confidence Engine  │                  │ Storage            │
-       │ Groq               │                  └────────────────────┘
-       └────────────────────┘
-```
-
----
-
-# 🧰 Tech Stack
-
-### Frontend
-
-* Next.js
-* TypeScript
-* Tailwind CSS
-* Framer Motion
-* GSAP
-* Lenis
-
-### Backend
-
-* Python
-* FastAPI
-* Pydantic
-* REST APIs
-
-### AI / ML
-
-* Groq
-* Sentence Transformers
-* FAISS
-* NumPy
-* Custom RAG pipeline
-* Custom confidence engine
-* Custom lexical reranker
-
-### Database & Authentication
-
-* Supabase
-* PostgreSQL
-* Supabase Auth
-* PostgreSQL Row-Level Security
-
-### Security
-
-* JWT
-* AES-256-GCM
-* CORS
-* Environment-based secrets
-
-### Infrastructure
-
-* Vercel
-* Render
-* GitHub
-
----
-
-# 📁 Project Structure
-
-```text
+Next.js, React, TypeScript, Tailwind CSS
+UI and motion
+Framer Motion, GSAP, Lenis, Lucide
+Backend
+Python, FastAPI, Pydantic, REST
+LLM inference
+Groq
+Embeddings and retrieval
+Transformers, FAISS, NumPy
+Document processing
+pypdf
+Database
+Supabase, PostgreSQL
+Authentication
+Supabase Auth, JWT
+Data protection
+PostgreSQL Row-Level Security, AES-256-GCM for selected sensitive fields
+Deployment
+Vercel, Render
+Repository layout
 HR365/
-│
 ├── backend/
 │   ├── app/
-│   │   ├── auth/
-│   │   ├── data/
-│   │   ├── engines/
-│   │   ├── models/
-│   │   ├── rag/
-│   │   ├── routers/
-│   │   ├── services/
-│   │   ├── config.py
-│   │   └── main.py
-│   │
+│   │   ├── auth/          # Authentication and authorization
+│   │   ├── data/          # Data access and knowledge sources
+│   │   ├── engines/       # Query and answer-processing engines
+│   │   ├── models/        # Pydantic/data models
+│   │   ├── rag/           # Retrieval-augmented generation
+│   │   ├── routers/       # API routes
+│   │   ├── services/      # Application services
+│   │   ├── config.py      # Configuration
+│   │   └── main.py        # FastAPI entry point
 │   ├── data/
 │   │   ├── raw/
 │   │   ├── processed/
 │   │   └── index/
-│   │
 │   ├── scripts/
-│   ├── requirements.txt
-│   └── .env
-│
+│   └── requirements.txt
 ├── frontend/
 │   ├── app/
 │   ├── components/
 │   ├── hooks/
 │   ├── lib/
-│   ├── types/
-│   └── ...
-│
-├── .env.example
-├── README.md
-└── .gitignore
-```
-
----
-
-# 🔌 API
-
-### Authentication
-
-```http
-GET /api/auth/me
-```
-
-Returns the authenticated employee profile.
-
-### AI Assistant
-
-```http
-POST /api/ask
-```
-
-Processes natural-language HR questions.
-
-Example:
-
-```json
-{
-  "question": "What is my attendance percentage?"
-}
-```
-
-### Attendance
-
-```http
-GET /api/attendance/me
-GET /api/attendance/me/summary
-```
-
-### Leaves
-
-```http
-GET   /api/leaves/me
-POST  /api/leaves
-PATCH /api/leaves/{id}
-```
-
-AI-assisted leave flow:
-
-```http
-POST /api/leaves/ai/preview
-POST /api/leaves/ai/confirm
-```
-
-### HR Requests
-
-```http
-GET   /api/hr-requests
-POST  /api/hr-requests
-PATCH /api/hr-requests/{id}
-POST  /api/hr-requests/{id}/escalate
-```
-
-### Notices
-
-```http
-GET    /api/notices
-POST   /api/notices
-DELETE /api/notices/{id}
-POST   /api/notices/{id}/read
-```
-
----
-
-# ⚙️ Setup
-
-## 1. Clone
-
-```bash
+│   └── types/
+└── README.md
+Getting started
+Prerequisites
+Python 3.10+ (use a version compatible with the installed dependencies)
+Node.js and npm
+A Supabase project
+A Groq API key for LLM-powered responses
+1. Clone the repository
 git clone https://github.com/ArshZaidi/HR365.git
 cd HR365
-```
-
-## 2. Backend
-
-```bash
+2. Configure the backend
 cd backend
 python -m venv .venv
-```
-
-### Windows
-
-```bash
-.venv\Scripts\activate
-```
-
-### macOS / Linux
-
-```bash
+Activate the virtual environment.
+Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+macOS / Linux:
 source .venv/bin/activate
-```
-
 Install dependencies:
-
-```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-```
-
-## 3. Environment Variables
-
-Create:
-
-```text
-backend/.env
-```
-
-Configure:
-
-```env
-SUPABASE_URL=
-SUPABASE_KEY=
-GROQ_API_KEY=
-HR365_ENCRYPTION_KEY=
+3. Configure environment variables
+Create a local backend/.env file. Do not commit it.
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_key
+GROQ_API_KEY=your_groq_api_key
+HR365_ENCRYPTION_KEY=your_base64_encoded_32_byte_key
 CORS_ORIGINS=http://localhost:3000
 ENABLE_AUTH_TEST_ROUTES=false
-```
-
-> Never commit `.env` or production secrets to GitHub.
-
-## 4. Start the Backend
-
-From `backend/`:
-
-```bash
+Use the variable names expected by the current backend configuration. The encryption key must meet the format and length expected by the encryption implementation. Keep production secrets out of source control, logs, screenshots, and client-side environment variables.
+4. Start the API
+From the backend/ directory:
 uvicorn app.main:app --reload
-```
-
-Backend:
-
-```text
-http://localhost:8000
-```
-
-API documentation:
-
-```text
-http://localhost:8000/docs
-```
-
-## 5. Start the Frontend
-
-Open another terminal:
-
-```bash
+By default, the API should be available at:
+API: http://localhost:8000
+Interactive API documentation: http://localhost:8000/docs
+5. Start the frontend
+Open a second terminal from the repository root:
 cd frontend
 npm install
 npm run dev
-```
-
-Frontend:
-
-```text
-http://localhost:3000
-```
-
----
-
-# 🧪 Testing
-
-HR365 has been tested across multiple system layers.
-
-### Authentication
-
-```text
-✓ Valid JWT
-✓ Invalid JWT
-✓ Expired authentication
-✓ Profile lookup
-```
-
-### Authorization
-
-```text
-✓ Employee access isolation
-✓ HR-only endpoints
-✓ Admin-only endpoints
-✓ Role enforcement
-```
-
-### RAG
-
-```text
-✓ Semantic retrieval
-✓ Top-k retrieval
-✓ Lexical reranking
-✓ Confidence calculation
-✓ Out-of-KB handling
-✓ Prompt-injection resistance
-```
-
-### Employee Data
-
-```text
-✓ Attendance retrieval
-✓ Leave retrieval
-✓ HR request retrieval
-✓ Employee data isolation
-```
-
-### HR Workflows
-
-```text
-✓ Leave submission
-✓ Leave approval/rejection
-✓ HR request creation
-✓ Manual escalation
-✓ Automatic escalation
-✓ Notice creation
-✓ Notice read tracking
-```
-
----
-
-# 📈 RAG Evaluation
-
-The retrieval system was evaluated against a dedicated set of HR questions.
-
-| Metric   |     Result |
-| -------- | ---------: |
-| Recall@1 | **93.33%** |
-| Recall@3 |   **100%** |
-| Recall@5 |   **100%** |
-
-The relevant policy document was retrieved within the top five results for all evaluated questions.
-
----
-
-# 🧠 Engineering Principles
-
-### 01 — Don't send everything to the LLM
-
-Employee data is retrieved directly from the authenticated database.
-
-### 02 — Ground policy answers
-
-Company policy questions use the internal knowledge base rather than relying on model memory.
-
-### 03 — Measure confidence
-
-The system evaluates retrieval quality before trusting an answer.
-
-### 04 — Escalate uncertainty
-
-Low-confidence HR questions can be routed to human HR support.
-
-### 05 — Confirm actions
-
-State-changing operations can require explicit confirmation.
-
-### 06 — Defense in depth
-
-Authentication, authorization, RLS, encryption, and API controls work together.
-
----
-
-# 🔄 End-to-End Example
-
-Consider:
-
-> **"Can I work remotely while I'm on probation?"**
-
-HR365 processes this as a hybrid query.
-
-```text
-                    User Question
-                         │
-                         ▼
-                 Query Classifier
-                         │
-                         ▼
-                      HYBRID
-                    /         \
-                   /           \
-                  ▼             ▼
-        Employee Context       RAG
-              │                 │
-              │          Remote Work Policy
-              │                 │
-              └────────┬────────┘
-                       ▼
-                Confidence Engine
-                       │
-                       ▼
-                     Groq
-                       │
-                       ▼
-               Grounded Response
-```
-
-The response can combine authenticated employee context with the relevant company policy.
-
----
-
-# 🌟 What Makes HR365 Different?
-
-HR365 is not simply:
-
-> **"ChatGPT + an HR database."**
-
-It is designed as an **AI interaction layer over a real HR system**.
-
-```text
-                ┌──────────────────────┐
-                │     HR365 Assistant   │
-                └──────────┬───────────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-        ▼                  ▼                  ▼
-    Understand          Retrieve            Act
-        │                  │                  │
-        ▼                  ▼                  ▼
-    Intent/Routing      RAG + DB        HR Workflows
-        │                  │                  │
-        └──────────────────┼──────────────────┘
-                           ▼
-                    Human Escalation
-```
-
-The goal is to make HR interaction feel less like navigating software and more like communicating with an intelligent workplace assistant.
-
----
-
-# 🗺️ Roadmap
-
-Potential future improvements include:
-
-* Advanced HR analytics
-* Payroll integrations
-* Calendar integrations
-* Email notifications
-* More HR workflow automations
-* Document upload and policy ingestion UI
-* Improved multilingual support
-* Advanced employee workload analytics
-* Expanded task automation
-* Production-grade observability
-* Automated RAG evaluation pipelines
-
----
-
-# 👨‍💻 Developer
-
-## Arsh Zaidi
-
-Computer Science student and developer focused on:
-
-* Artificial Intelligence
-* Machine Learning
-* Full-Stack Development
-* Backend Engineering
-* RAG Systems
-* Developer Tools
-
-### Connect
-
-* GitHub — [https://github.com/ArshZaidi](https://github.com/ArshZaidi)
-* LinkedIn — [https://www.linkedin.com/in/arsh-raza-zaidi-265826311/](https://www.linkedin.com/in/arsh-raza-zaidi-265826311/)
-* LeetCode — [https://leetcode.com/u/Arsh_Zaidi/](https://leetcode.com/u/Arsh_Zaidi/)
-
----
-
-# 🏆 Microsoft Innovate Hackathon 2026
-
-HR365 was built for the **Microsoft Innovate Hackathon 2026** around one central question:
-
-> **What if employees could interact with their entire HR system as naturally as they interact with an AI assistant?**
-
-HR365 is an attempt to build that experience while keeping the underlying HR data, authorization, retrieval, and workflows grounded in a real backend.
-
----
-
-<p align="center">
-
-## HR365
-
-### Your HR system. One intelligent interface.
-
-**Ask. Understand. Act.**
-
-</p>
+Open http://localhost:3000.
+6. Verify the local setup
+Confirm the backend starts without configuration errors.
+Open /docs and check that the expected routes are registered.
+Confirm the frontend can reach the configured backend URL.
+Test authentication and authorization with non-production accounts.
+Test policy questions against the configured knowledge base and verify that unsupported questions do not produce fabricated policy claims.
+Database schema, Supabase policies, and environment variables must be configured for the features you intend to run. A successful local server start does not, by itself, mean every integration is configured.
+Environment configuration
+Variable
+Purpose
+SUPABASE_URL
+Supabase project URL
+SUPABASE_KEY
+Supabase key used by the backend; configure it according to the project's auth/RLS design
+GROQ_API_KEY
+API key for Groq inference
+HR365_ENCRYPTION_KEY
+Key used by the selected AES-256-GCM encryption implementation
+CORS_ORIGINS
+Allowed frontend origins
+ENABLE_AUTH_TEST_ROUTES
+Controls development authentication test routes; keep disabled outside local development
+Check the backend configuration and deployment environment for any additional variables required by your checkout.
+API overview
+The backend exposes REST endpoints for authentication, the AI assistant, attendance, leave management, HR requests, and notices. The routes below summarize the interface documented by the project; consult the running API docs for the definitive request and response schemas.
+Area
+Method and route
+Purpose
+Authentication
+GET /api/auth/me
+Get the authenticated profile
+AI assistant
+POST /api/ask
+Process an HR question
+Attendance
+GET /api/attendance/me
+Get the current employee's attendance
+Attendance
+GET /api/attendance/me/summary
+Get an attendance summary
+Leaves
+GET /api/leaves/me
+List the current employee's leaves
+Leaves
+POST /api/leaves
+Submit a leave request
+AI leave flow
+POST /api/leaves/ai/preview
+Preview an AI-assisted leave request
+AI leave flow
+POST /api/leaves/ai/confirm
+Confirm a leave request
+HR requests
+GET /api/hr-requests
+List accessible HR requests
+HR requests
+POST /api/hr-requests
+Create an HR request
+HR requests
+POST /api/hr-requests/{id}/escalate
+Escalate a request
+Notices
+GET /api/notices
+Retrieve accessible notices
+Notices
+POST /api/notices
+Publish a notice, subject to authorization
+Notices
+POST /api/notices/{id}/read
+Mark a notice as read
+Interactive documentation: http://localhost:8000/docs
+Security design
+HR365 handles sensitive employee information, so authorization is as important as answer quality.
+Authentication: Supabase Auth and JWT-backed requests.
+Role-aware access: Employee, HR, and admin capabilities are separated by authorization checks.
+Database access: PostgreSQL Row-Level Security is part of the intended data-isolation model.
+Sensitive fields: AES-256-GCM is used for selected HR request content.
+API hygiene: Input validation, CORS configuration, environment-based secrets, and controlled error responses.
+AES-256-GCM here is application/data-layer encryption, not end-to-end encryption: the backend needs access to the key to process protected data. Security depends on the actual deployment configuration, correct RLS policies, key management, and authorization checks. Review these before using real employee data. Never expose service-role keys or encryption keys in the frontend.
+Evaluation and testing
+The RAG pipeline should be evaluated on retrieval quality as well as answer quality. Useful checks include:
+Whether the correct policy appears in the top-k retrieved documents.
+Whether reranking improves the position of relevant evidence.
+Whether confidence scoring flags weak or missing evidence.
+Whether answers stay grounded in retrieved passages.
+Whether personal-data requests use authenticated data access rather than the policy index.
+Whether authorization prevents one employee from reading another employee's records.
+Whether state-changing actions validate inputs and require confirmation where appropriate.
+Run the current implementation's available checks and use the live API documentation to verify routes. Do not treat retrieval metrics alone as proof of answer correctness, privacy, or production readiness.
+Current scope
+HR365 was developed as a full-stack AI/HR platform project for the Microsoft Innovate Hackathon 2026. It combines a local application architecture with AI-assisted HR flows. Some capabilities depend on external credentials, database setup, policy documents, and deployment configuration.
+The repository should be treated as a development project rather than a certified HR, payroll, or compliance product. Use synthetic data for evaluation until the security model and operational requirements have been independently reviewed.
+Roadmap
+Potential areas for future work:
+Automated retrieval and answer-quality evaluation.
+Better observability for retrieval, confidence, latency, and escalation.
+Policy ingestion and knowledge-base versioning workflows.
+Broader HR workflow automation and integrations.
+Improved multilingual policy support.
+Expanded reporting and workforce analytics.
+Deployment hardening and end-to-end integration tests.
+Contributing
+Contributions and constructive feedback are welcome.
+Fork the repository.
+Create a focused branch: git checkout -b feat/your-change.
+Make and test your changes.
+Keep secrets and real employee data out of commits and test fixtures.
+Open a pull request describing the problem, solution, and validation performed.
+For substantial changes, open an issue first to discuss the approach.
+Author
+Arsh Zaidi
+GitHub: @ArshZaidi
+LinkedIn: arsh-raza-zaidi
+LeetCode: Arsh_Zaidi
+HR365
+Your HR system. One intelligent interface.
+Ask. Understand. Act. 
